@@ -1,12 +1,36 @@
 ////////////////////////////////////////////////////
 // main game object
 ////////////////////////////////////////////////////
+console.log('MiniTanks v0.001')
 const Game = {
     Settings: {
         canvas: document.getElementById('gameCanvas'),
         ctx: document.getElementById('gameCanvas').getContext('2d'),
         canvasWidth: 800,
         canvasHeight: 600
+    },
+    Input: {
+        keys: {
+            ArrowLeft: false,
+            ArrowRight: false,
+            ArrowUp: false,
+            ArrowDown: false,
+            Space: false,
+            KeyA: false,
+            KeyD: false
+        },
+        initialize() {
+            document.addEventListener('keydown', (event) => {
+                if (this.keys.hasOwnProperty(event.code)) {
+                    this.keys[event.code] = true;
+                }
+            });
+            document.addEventListener('keyup', (event) => {
+                if (this.keys.hasOwnProperty(event.code)) {
+                    this.keys[event.code] = false;
+                }
+            });
+        }
     },
     Entity: class {
         constructor(x, y) {
@@ -16,43 +40,61 @@ const Game = {
         update() {}
         draw(ctx) {}
     },
-    Entities: []
-}
-////////////////////////////////////////////////////
-// inputs
-////////////////////////////////////////////////////
-Game.Input = {
-    keys: {
-        ArrowLeft: false,
-        ArrowRight: false,
-        ArrowUp: false,
-        ArrowDown: false,
-        Space: false,
-        KeyA: false,
-        KeyD: false
+    entities: [],
+    addEntity(entity) {
+        this.entities.push(entity)
+        console.log(this.entities)
     },
-    initialize() {
-        document.addEventListener('keydown', (event) => {
-            if (this.keys.hasOwnProperty(event.code)) {
-                this.keys[event.code] = true;
-            }
-        });
-        document.addEventListener('keyup', (event) => {
-            if (this.keys.hasOwnProperty(event.code)) {
-                this.keys[event.code] = false;
-            }
-        });
+    removeEntity(entity) {
+        const index = this.entities.indexOf(entity)
+        if (index > -1) {
+            this.entities.splice(index, 1)
+        }
     }
-};
+}
 
 ////////////////////////////////////////////////////
-// player
+// bullet class
 ////////////////////////////////////////////////////
+Game.Bullet = class extends Game.Entity{
+    constructor(x, y, vx, vy) {
+        super(x, y);
+        this.type = 'bullet',
+        this.vx = vx;
+        this.vy = vy;
+        this.radius = 4;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        // offmap removal
+        if (this.x < 0 || this.x > Game.Settings.canvasWidth || this.y < 0 || this.y > Game.Settings.canvasHeight) {
+            Game.removeEntity(this);
+        }
+    }
+    draw() {
+        let ctx = Game.Settings.ctx;
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
 
+Game.createBullet = function(x, y, vx, vy) {
+    const bullet = new Game.Bullet(x, y, vx, vy);
+    this.addEntity(bullet);
+    return bullet;
+}
+
+////////////////////////////////////////////////////
+// player class
+////////////////////////////////////////////////////
 Game.Player = class extends Game.Entity {
     constructor(x, y, speed) {
         super(x, y);
-        this.speed = speed;
+        this.type = 'player',
+        this.speed = speed,
         this.width = 16;
         this.height = 10;
         this.angle = 0;
@@ -65,17 +107,22 @@ Game.Player = class extends Game.Entity {
     update() {
         let keys = Game.Input.keys;
 
-        // Movement logic
+        // apply inputs
         if(keys.ArrowLeft) { this.angle -= this.rotationSpeed; }
         if(keys.ArrowRight) { this.angle += this.rotationSpeed; }
         if(keys.ArrowUp) { this.speed += this.acceleration; }
         if(keys.ArrowDown) { this.speed -= this.acceleration; }
+
         if(keys.KeyA) { this.turretAngle -= this.rotationSpeed; }
         if(keys.KeyD) { this.turretAngle += this.rotationSpeed; }
 
-        // Apply friction and limit speed
-        this.speed *= this.friction;
+        if (keys.Space) {
+            console.log('FIRE');
+            this.fireBullet();
+        }
 
+        // friction & speed
+        this.speed *= this.friction;
         if (this.speed > this.maxSpeed) {
             this.speed = this.maxSpeed;
         } else if (this.speed < -this.maxSpeed) {
@@ -88,6 +135,8 @@ Game.Player = class extends Game.Entity {
     }
     draw() {
         let ctx = Game.Settings.ctx;
+
+        // tank
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
@@ -98,7 +147,7 @@ Game.Player = class extends Game.Entity {
         ctx.fill();
         ctx.restore();
 
-        // Turret logic
+        // turret draw
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle + this.turretAngle);
@@ -110,22 +159,34 @@ Game.Player = class extends Game.Entity {
         ctx.stroke();
         ctx.restore();
     }
-};
+    fireBullet() {
+        const speed = 10; // bullet speed
+        const vx = Math.cos(this.angle + this.turretAngle) * speed;
+        const vy = Math.sin(this.angle + this.turretAngle) * speed;
+        Game.createBullet(this.x, this.y, vx, vy);
+    }
+}
+
+Game.createPlayer = function() { // instantiates, adds to entities array, and returns (for any other use)
+    const player = new Game.Player(this.Settings.canvasWidth / 2, this.Settings.canvasHeight / 2, 0);
+    this.addEntity(player);
+    return player; 
+}
 
 
 ////////////////////////////////////////////////////
 // game loop
 ////////////////////////////////////////////////////
 
-Game.player = new Game.Player(Game.Settings.canvasWidth / 2, Game.Settings.canvasHeight / 2, 0);
+Game.createPlayer()
 
 function gameLoop() {
-    Game.Settings.ctx.clearRect(0, 0, Game.Settings.canvasWidth, Game.Settings.canvasHeight);
-    Game.player.update();
-    Game.player.draw();
-    requestAnimationFrame(gameLoop);
+    Game.Settings.ctx.clearRect(0, 0, Game.Settings.canvasWidth, Game.Settings.canvasHeight)
+    Game.entities.forEach(entity => entity.update())
+    Game.entities.forEach(entity => entity.draw())
+    requestAnimationFrame(gameLoop)
 }
 
-Game.Input.initialize();
+Game.Input.initialize()
 
-gameLoop();
+gameLoop()
