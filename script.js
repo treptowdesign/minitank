@@ -9,7 +9,7 @@ Math.clamp = function(value, min, max) {
 ////////////////////////////////////////////////////
 // main game object
 ////////////////////////////////////////////////////
-console.log('MiniTanks v0.001')
+console.log('MiniTanks v0.004')
 const Game = {
     Settings: {
         canvas: document.getElementById('gameCanvas'),
@@ -44,12 +44,13 @@ const Game = {
         constructor(x, y) {
             this.x = x;
             this.y = y;
+            // add width, height, angle
         }
         update() {}
         draw(ctx) {}
         handleCollision(){}
         getVertices() { // for collision detect
-            let vertices = [];
+            const vertices = []; // should be init'd const...?
             const angle = this.angle;
             const corners = [
                 { x: -this.width / 2, y: -this.height / 2 },
@@ -62,7 +63,6 @@ const Game = {
                 const rotatedY = this.y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle));
                 vertices.push({ x: rotatedX, y: rotatedY });
             });
-        
             return vertices;
         }
     },
@@ -88,7 +88,7 @@ Game.Enemy = class extends Game.Entity{
         this.color = 'orange'
     }
     update() {
-        // 
+        // enemy movement...
     }
     draw() {
         let ctx = Game.Settings.ctx
@@ -237,7 +237,7 @@ Game.createPlayer = function() { // instantiates, adds to entities array, and re
 // collision detection 
 ////////////////////////////////////////////////////
 
-function projectAxis(vertices, axis) {
+const projectAxis = (vertices, axis) => {
     let min = Infinity;
     let max = -Infinity;
     vertices.forEach(vertex => {
@@ -250,6 +250,17 @@ function projectAxis(vertices, axis) {
 
 function overlap(proj1, proj2) {
     return proj1.max > proj2.min && proj2.max > proj1.min;
+}
+
+function getAxes(vertices) {
+    let axes = [];
+    for (let i = 0; i < vertices.length; i++) {
+        const next = i + 1 === vertices.length ? 0 : i + 1;
+        const edge = { x: vertices[next].x - vertices[i].x, y: vertices[next].y - vertices[i].y };
+        const normal = { x: -edge.y, y: edge.x };
+        axes.push(normal);
+    }
+    return axes;
 }
 
 function checkCollision(entity1, entity2) {
@@ -272,16 +283,7 @@ function checkCollision(entity1, entity2) {
     return true; // collision detected
 }
 
-function getAxes(vertices) {
-    let axes = [];
-    for (let i = 0; i < vertices.length; i++) {
-        const next = i + 1 === vertices.length ? 0 : i + 1;
-        const edge = { x: vertices[next].x - vertices[i].x, y: vertices[next].y - vertices[i].y };
-        const normal = { x: -edge.y, y: edge.x };
-        axes.push(normal);
-    }
-    return axes;
-}
+
 
 
 ////////////////////////////////////////////////////
@@ -293,9 +295,9 @@ Game.createEnemy(100, 100)
 Game.createEnemy(500, 100, 0.7)
 
 function gameLoop() {
+    // console.log('Entities: ',Game.entities.length );
     Game.Settings.ctx.clearRect(0, 0, Game.Settings.canvasWidth, Game.Settings.canvasHeight)
     Game.entities.forEach(entity => entity.update())
-
     for (let i = 0; i < Game.entities.length; i++) {
         for (let j = i + 1; j < Game.entities.length; j++) {
             if (checkCollision(Game.entities[i], Game.entities[j])) {
@@ -304,7 +306,6 @@ function gameLoop() {
             }
         }
     }
-
     Game.entities.forEach(entity => entity.draw())
     requestAnimationFrame(gameLoop)
 }
