@@ -1,15 +1,15 @@
 ////////////////////////////////////////////////////
-// helpers
+// helpers - not used yet, maybe move to Utilities...
 ////////////////////////////////////////////////////
 
-Math.clamp = function(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-};
+// Math.clamp = function(value, min, max) {
+//     return Math.min(Math.max(value, min), max);
+// };
 
 ////////////////////////////////////////////////////
 // main game object
 ////////////////////////////////////////////////////
-console.log('MiniTanks v0.004')
+console.log('MiniTanks v0.01') 
 const Game = {
     Settings: {
         canvas: document.getElementById('gameCanvas'),
@@ -141,7 +141,7 @@ Game.Bullet = class extends Game.Entity{
         ctx.restore()
     }
     handleCollision(other){
-        // console.log('Bullet Hit')
+        console.log('Bullet Hit!!')
     }
 }
 
@@ -298,14 +298,33 @@ function gameLoop() {
     // console.log('Entities: ',Game.entities.length );
     Game.Settings.ctx.clearRect(0, 0, Game.Settings.canvasWidth, Game.Settings.canvasHeight)
     Game.entities.forEach(entity => entity.update())
-    for (let i = 0; i < Game.entities.length; i++) {
-        for (let j = i + 1; j < Game.entities.length; j++) {
-            if (checkCollision(Game.entities[i], Game.entities[j])) {
-                Game.entities[i].handleCollision(Game.entities[j]);
-                Game.entities[j].handleCollision(Game.entities[i]);
+
+    // Collisions Loop (All entities)
+    // console.log(Game.entities.length)
+    // for (let i = 0; i < Game.entities.length; i++) {
+    //     for (let j = i + 1; j < Game.entities.length; j++) {
+    //         if (checkCollision(Game.entities[i], Game.entities[j])) {
+    //             Game.entities[i].handleCollision(Game.entities[j]);
+    //             Game.entities[j].handleCollision(Game.entities[i]);
+    //         }
+    //     }
+    // }
+
+    // Collisions Loop (Specific entities - doesnt work yet)
+    const bulletEntities = Game.entities.filter((e) => {return e.type == 'bullet'})
+    const enemyEntities = Game.entities.filter((e) => {return e.type == 'enemy'})
+    if(bulletEntities.length && enemyEntities.length){
+        console.log(bulletEntities.length, enemyEntities.length)
+        for (let i = 0; i < bulletEntities.length; i++) {
+            for (let j = i + 1; j < enemyEntities.length; j++) {
+                if (checkCollision(bulletEntities[i], enemyEntities[j])) {
+                    bulletEntities[i].handleCollision(enemyEntities[j]);
+                    enemyEntities[j].handleCollision(bulletEntities[i]);
+                }
             }
         }
     }
+
     Game.entities.forEach(entity => entity.draw())
     requestAnimationFrame(gameLoop)
 }
