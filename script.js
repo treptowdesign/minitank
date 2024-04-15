@@ -128,7 +128,7 @@ Game.Bullet = class extends Game.Entity{
         this.y += Math.sin(this.angle) * this.speed
         // offmap removal
         if (this.x < 0 || this.x > Game.Settings.canvasWidth || this.y < 0 || this.y > Game.Settings.canvasHeight) {
-            Game.removeEntity(this);
+            Game.removeEntity(this)
         }
     }
     draw() {
@@ -141,7 +141,8 @@ Game.Bullet = class extends Game.Entity{
         ctx.restore()
     }
     handleCollision(other){
-        console.log('Bullet Hit!!')
+        // console.log('Bullet Hit!!')
+        Game.removeEntity(this) // remove bullet on hit!
     }
 }
 
@@ -310,13 +311,12 @@ function gameLoop() {
     //     }
     // }
 
-    // Collisions Loop (Specific entities - doesnt work yet)
+    // Collisions Loop: Bullet & Enemy 
     const bulletEntities = Game.entities.filter((e) => {return e.type == 'bullet'})
     const enemyEntities = Game.entities.filter((e) => {return e.type == 'enemy'})
     if(bulletEntities.length && enemyEntities.length){
-        console.log(bulletEntities.length, enemyEntities.length)
         for (let i = 0; i < bulletEntities.length; i++) {
-            for (let j = i + 1; j < enemyEntities.length; j++) {
+            for (let j = 0; j < enemyEntities.length; j++) {
                 if (checkCollision(bulletEntities[i], enemyEntities[j])) {
                     bulletEntities[i].handleCollision(enemyEntities[j]);
                     enemyEntities[j].handleCollision(bulletEntities[i]);
