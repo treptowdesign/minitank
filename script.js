@@ -1,15 +1,7 @@
 ////////////////////////////////////////////////////
-// helpers - not used yet, maybe move to Utilities...
-////////////////////////////////////////////////////
-
-// Math.clamp = function(value, min, max) {
-//     return Math.min(Math.max(value, min), max);
-// };
-
-////////////////////////////////////////////////////
 // main game object
 ////////////////////////////////////////////////////
-console.log('MiniTanks v0.01') 
+console.log('MiniTanks v0.04') 
 const Game = {
     Settings: {
         canvas: document.getElementById('gameCanvas'),
@@ -41,16 +33,18 @@ const Game = {
         }
     },
     Entity: class {
-        constructor(x, y) {
-            this.x = x;
-            this.y = y;
-            // add width, height, angle
+        constructor({ x = 0, y = 0, width = 10, height = 10, angle = 0 } = {}) {
+            this.x = x
+            this.y = y
+            this.height = height
+            this.width = width 
+            this.angle = angle
         }
         update() {}
         draw(ctx) {}
         handleCollision(){}
         getVertices() { // for collision detect
-            const vertices = []; // should be init'd const...?
+            const vertices = []; 
             const angle = this.angle;
             const corners = [
                 { x: -this.width / 2, y: -this.height / 2 },
@@ -59,11 +53,17 @@ const Game = {
                 { x: -this.width / 2, y: this.height / 2 }
             ];
             corners.forEach(corner => {
-                const rotatedX = this.x + (corner.x * Math.cos(angle) - corner.y * Math.sin(angle));
-                const rotatedY = this.y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle));
-                vertices.push({ x: rotatedX, y: rotatedY });
+                const rotatedX = this.x + (corner.x * Math.cos(angle) - corner.y * Math.sin(angle))
+                const rotatedY = this.y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle))
+                vertices.push({ x: rotatedX, y: rotatedY })
+                // draw corners...
+                // let ctx = Game.Settings.ctx
+                // ctx.fillStyle = 'green'
+                // ctx.beginPath()
+                // ctx.arc(rotatedX, rotatedY, 1, 0, 2 * Math.PI);
+                // ctx.fill()
             });
-            return vertices;
+            return vertices
         }
     },
     entities: [],
@@ -79,12 +79,9 @@ const Game = {
 // enemy class
 ////////////////////////////////////////////////////
 Game.Enemy = class extends Game.Entity{
-    constructor(x, y, angle) {
-        super(x, y);
+    constructor({ x, y, angle, width = 30, height = 15 } = {}) {
+        super({ x, y, width, height, angle })
         this.type = 'enemy'
-        this.width = 30
-        this.height = 15
-        this.angle = angle || 0
         this.color = 'orange'
     }
     update() {
@@ -101,7 +98,6 @@ Game.Enemy = class extends Game.Entity{
     }
     handleCollision(other){
         this.color = 'green'
-        console.log('Enemy Hit')
     }
 }
 
@@ -115,13 +111,10 @@ Game.createEnemy = function(x, y, angle) {
 // bullet class
 ////////////////////////////////////////////////////
 Game.Bullet = class extends Game.Entity{
-    constructor(x, y, angle) {
-        super(x, y);
+    constructor({ x, y, angle, speed = 10, size = 4 } = {}) {
+        super({ x, y, width: size, height: size, angle })
         this.type = 'bullet'
-        this.speed = 10
-        this.width = 4
-        this.height = 4
-        this.angle = angle
+        this.speed = speed
     }
     update() {
         this.x += Math.cos(this.angle) * this.speed
@@ -147,7 +140,7 @@ Game.Bullet = class extends Game.Entity{
 }
 
 Game.createBullet = function(x, y, angle) {
-    const bullet = new Game.Bullet(x, y, angle)
+    const bullet = new Game.Bullet({x: x, y: y, angle: angle})
     this.addEntity(bullet)
     return bullet
 }
@@ -156,13 +149,10 @@ Game.createBullet = function(x, y, angle) {
 // player class
 ////////////////////////////////////////////////////
 Game.Player = class extends Game.Entity {
-    constructor(x, y, speed) {
-        super(x, y);
+    constructor({ x, y, width = 16, height = 10, angle = 0, speed = 0} = {}) {
+        super({ x, y, width, height, angle })
         this.type = 'player'
         this.speed = speed
-        this.width = 16
-        this.height = 10
-        this.angle = 0
         this.turretAngle = 0
         this.friction = 0.98
         this.rotationSpeed = 0.01
@@ -228,11 +218,18 @@ Game.Player = class extends Game.Entity {
 }
 
 Game.createPlayer = function() { // instantiates, adds to entities array, and returns (for any other use)
-    const player = new Game.Player(this.Settings.canvasWidth / 2, this.Settings.canvasHeight / 2, 0)
+    const player = new Game.Player({x: (this.Settings.canvasWidth / 2), y: (this.Settings.canvasHeight / 2), speed: 0})
     this.addEntity(player)
     return player
 }
 
+////////////////////////////////////////////////////
+// helpers - not used yet, maybe move to Utilities...
+////////////////////////////////////////////////////
+
+// Math.clamp = function(value, min, max) {
+//     return Math.min(Math.max(value, min), max);
+// };
 
 ////////////////////////////////////////////////////
 // collision detection 
@@ -249,11 +246,11 @@ const projectAxis = (vertices, axis) => {
     return { min, max };
 }
 
-function overlap(proj1, proj2) {
+const overlap = (proj1, proj2) => {
     return proj1.max > proj2.min && proj2.max > proj1.min;
 }
 
-function getAxes(vertices) {
+const getAxes = (vertices) => {
     let axes = [];
     for (let i = 0; i < vertices.length; i++) {
         const next = i + 1 === vertices.length ? 0 : i + 1;
@@ -264,7 +261,7 @@ function getAxes(vertices) {
     return axes;
 }
 
-function checkCollision(entity1, entity2) {
+const checkCollision = (entity1, entity2) => {
     const vertices1 = entity1.getVertices();
     const vertices2 = entity2.getVertices();
 
@@ -285,50 +282,38 @@ function checkCollision(entity1, entity2) {
 }
 
 
-
-
 ////////////////////////////////////////////////////
 // game loop
 ////////////////////////////////////////////////////
 
 Game.createPlayer()
-Game.createEnemy(100, 100)
-Game.createEnemy(500, 100, 0.7)
+Game.createEnemy({x: 100, y: 100, angle: -0.2})
+Game.createEnemy({x: 600, y: 100, angle: 0.7})
+Game.createEnemy({x: 400, y: 500, angle: 0.45})
 
 function gameLoop() {
-    // console.log('Entities: ',Game.entities.length );
+    // Clear Canvas
     Game.Settings.ctx.clearRect(0, 0, Game.Settings.canvasWidth, Game.Settings.canvasHeight)
+    // Update Entities 
     Game.entities.forEach(entity => entity.update())
-
-    // Collisions Loop (All entities)
-    // console.log(Game.entities.length)
-    // for (let i = 0; i < Game.entities.length; i++) {
-    //     for (let j = i + 1; j < Game.entities.length; j++) {
-    //         if (checkCollision(Game.entities[i], Game.entities[j])) {
-    //             Game.entities[i].handleCollision(Game.entities[j]);
-    //             Game.entities[j].handleCollision(Game.entities[i]);
-    //         }
-    //     }
-    // }
-
-    // Collisions Loop: Bullet & Enemy 
-    const bulletEntities = Game.entities.filter((e) => {return e.type == 'bullet'})
-    const enemyEntities = Game.entities.filter((e) => {return e.type == 'enemy'})
+    // Collisions Loop(s) 
+    const bulletEntities = Game.entities.filter((e) => { return e.type == 'bullet' })
+    const enemyEntities = Game.entities.filter((e) => { return e.type == 'enemy' })
     if(bulletEntities.length && enemyEntities.length){
         for (let i = 0; i < bulletEntities.length; i++) {
             for (let j = 0; j < enemyEntities.length; j++) {
                 if (checkCollision(bulletEntities[i], enemyEntities[j])) {
-                    bulletEntities[i].handleCollision(enemyEntities[j]);
-                    enemyEntities[j].handleCollision(bulletEntities[i]);
+                    bulletEntities[i].handleCollision(enemyEntities[j])
+                    enemyEntities[j].handleCollision(bulletEntities[i])
                 }
             }
         }
     }
-
+    // Draw Entities
     Game.entities.forEach(entity => entity.draw())
     requestAnimationFrame(gameLoop)
 }
 
-Game.Input.initialize()
+Game.Input.initialize() // init keybinds 
 
 gameLoop()
