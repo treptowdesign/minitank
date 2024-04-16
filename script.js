@@ -101,8 +101,8 @@ Game.Enemy = class extends Game.Entity{
     }
 }
 
-Game.createEnemy = function(x, y, angle) {
-    const enemy = new Game.Enemy(x, y, angle)
+Game.createEnemy = function(args) {
+    const enemy = new Game.Enemy(args)
     this.addEntity(enemy)
     return enemy
 }
@@ -139,8 +139,8 @@ Game.Bullet = class extends Game.Entity{
     }
 }
 
-Game.createBullet = function(x, y, angle) {
-    const bullet = new Game.Bullet({x: x, y: y, angle: angle})
+Game.createBullet = function(args) {
+    const bullet = new Game.Bullet(args)
     this.addEntity(bullet)
     return bullet
 }
@@ -210,15 +210,15 @@ Game.Player = class extends Game.Entity {
         ctx.restore()
     }
     fireBullet() {
-        Game.createBullet(this.x, this.y, this.angle + this.turretAngle)
+        Game.createBullet({x: this.x, y: this.y, angle: (this.angle + this.turretAngle)})
     }
     handleCollision(other){
        //  console.log('Player Hit')
     }
 }
 
-Game.createPlayer = function() { // instantiates, adds to entities array, and returns (for any other use)
-    const player = new Game.Player({x: (this.Settings.canvasWidth / 2), y: (this.Settings.canvasHeight / 2), speed: 0})
+Game.createPlayer = function(args) { // instantiates, adds to entities array, and returns (for any other use)
+    const player = new Game.Player(args)
     this.addEntity(player)
     return player
 }
@@ -286,8 +286,9 @@ const checkCollision = (entity1, entity2) => {
 // game loop
 ////////////////////////////////////////////////////
 
-Game.createPlayer()
-Game.createEnemy({x: 100, y: 100, angle: -0.2})
+Game.createPlayer({x: (Game.Settings.canvasWidth / 2), y: (Game.Settings.canvasHeight / 2), angle: 0})
+
+Game.createEnemy({x: 150, y: 100, angle: -0.2})
 Game.createEnemy({x: 600, y: 100, angle: 0.7})
 Game.createEnemy({x: 400, y: 500, angle: 0.45})
 
