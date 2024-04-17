@@ -83,9 +83,44 @@ Game.Enemy = class extends Game.Entity{
         super({ x, y, width, height, angle })
         this.type = 'enemy'
         this.color = 'orange'
+
+        this.speed = 0
+        this.friction = 0.98
+        this.rotationSpeed = 0.01
+        this.acceleration = 0.03
+        this.maxSpeed = 4
+        this.moveTime = Date.now()
+
+        this.moveInterval = 1000 // 1 sec
+        this.moveDirection = false
     }
     update() {
-        // enemy movement...
+        // change dir
+        const currentTime = Date.now()
+        if ((currentTime - this.moveTime) > this.moveInterval) {
+            this.moveDirection = !this.moveDirection
+            this.moveTime = currentTime
+        }
+
+        // move...
+        if(this.moveDirection){
+            this.speed += this.acceleration
+        } else {
+            this.speed -= this.acceleration
+        }
+
+        // friction & speed
+        this.speed *= this.friction
+        if (this.speed > this.maxSpeed) {
+            this.speed = this.maxSpeed
+        } else if (this.speed < -this.maxSpeed) {
+            this.speed = -this.maxSpeed
+        }
+
+        // update pos
+        this.x += Math.cos(this.angle) * this.speed
+        this.y += Math.sin(this.angle) * this.speed
+
     }
     draw() {
         let ctx = Game.Settings.ctx
@@ -97,7 +132,7 @@ Game.Enemy = class extends Game.Entity{
         ctx.restore() 
     }
     handleCollision(other){
-        this.color = 'green'
+        this.color = 'red'
     }
 }
 
@@ -149,10 +184,10 @@ Game.createBullet = function(args) {
 // player class
 ////////////////////////////////////////////////////
 Game.Player = class extends Game.Entity {
-    constructor({ x, y, width = 16, height = 10, angle = 0, speed = 0} = {}) {
+    constructor({ x, y, width = 16, height = 10, angle} = {}) {
         super({ x, y, width, height, angle })
         this.type = 'player'
-        this.speed = speed
+        this.speed = 0
         this.turretAngle = 0
         this.friction = 0.98
         this.rotationSpeed = 0.01
@@ -287,7 +322,6 @@ const checkCollision = (entity1, entity2) => {
 ////////////////////////////////////////////////////
 
 Game.createPlayer({x: (Game.Settings.canvasWidth / 2), y: (Game.Settings.canvasHeight / 2), angle: 0})
-
 Game.createEnemy({x: 150, y: 100, angle: -0.2})
 Game.createEnemy({x: 600, y: 100, angle: 0.7})
 Game.createEnemy({x: 400, y: 500, angle: 0.45})
