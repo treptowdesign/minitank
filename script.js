@@ -89,27 +89,33 @@ Game.Enemy = class extends Game.Entity{
         this.rotationSpeed = 0.01
         this.acceleration = 0.03
         this.maxSpeed = 4
-        this.moveTime = Date.now()
 
+        this.moveTime = Date.now()
+        this.moveOptions = ['forward', 'backward', 'none']
+        this.turnOptions = ['left', 'right', 'none']
         this.moveInterval = 1000 // 1 sec
-        this.moveDirection = false
+        this.moveDirection = 'none'
     }
     update() {
-        // change dir
+
+        // change random dir on timer
         const currentTime = Date.now()
         if ((currentTime - this.moveTime) > this.moveInterval) {
-            this.moveDirection = !this.moveDirection
+            const moveChoose = rrand({min: 0, max: this.moveOptions.length -1})
+            this.moveDirection = this.moveOptions[moveChoose]
             this.moveTime = currentTime
         }
 
-        // move...
-        if(this.moveDirection){
+        // handle movement
+        if(this.moveDirection == 'forward'){
             this.speed += this.acceleration
-        } else {
+        } else if(this.moveDirection == 'backward') {
             this.speed -= this.acceleration
+        } else {
+            // no move
         }
 
-        // friction & speed
+        // friction & max speed
         this.speed *= this.friction
         if (this.speed > this.maxSpeed) {
             this.speed = this.maxSpeed
@@ -206,7 +212,7 @@ Game.Player = class extends Game.Entity {
         if(keys.KeyD) { this.turretAngle += this.rotationSpeed }
         if(keys.Space) { this.fireBullet() }
 
-        // friction & speed
+        // friction & max speed
         this.speed *= this.friction
         if (this.speed > this.maxSpeed) {
             this.speed = this.maxSpeed
@@ -259,12 +265,17 @@ Game.createPlayer = function(args) { // instantiates, adds to entities array, an
 }
 
 ////////////////////////////////////////////////////
-// helpers - not used yet, maybe move to Utilities...
+// helpers/utilities
 ////////////////////////////////////////////////////
 
 // Math.clamp = function(value, min, max) {
 //     return Math.min(Math.max(value, min), max);
 // };
+
+// random generator
+const rrand = ({min = 0, max = 1} = {}) => {
+    return Math.floor(Math.random() * (max - min + 1)) + min
+}
 
 ////////////////////////////////////////////////////
 // collision detection 
