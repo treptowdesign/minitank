@@ -56,12 +56,6 @@ const Game = {
                 const rotatedX = this.x + (corner.x * Math.cos(angle) - corner.y * Math.sin(angle))
                 const rotatedY = this.y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle))
                 vertices.push({ x: rotatedX, y: rotatedY })
-                // draw corners...
-                // let ctx = Game.Settings.ctx
-                // ctx.fillStyle = 'green'
-                // ctx.beginPath()
-                // ctx.arc(rotatedX, rotatedY, 1, 0, 2 * Math.PI);
-                // ctx.fill()
             });
             return vertices
         }
@@ -95,15 +89,48 @@ Game.Enemy = class extends Game.Entity{
         this.turnOptions = ['left', 'right', 'none']
         this.moveInterval = 1000 // 1 sec
         this.moveDirection = 'none'
+
+        this.isOoB = false
+        this.targetAngle = angle
     }
     update() {
 
-        // change random dir on timer
-        const currentTime = Date.now()
-        if ((currentTime - this.moveTime) > this.moveInterval) {
-            const moveChoose = rrand({min: 0, max: this.moveOptions.length -1})
-            this.moveDirection = this.moveOptions[moveChoose]
-            this.moveTime = currentTime
+        const gS = Game.Settings
+
+        // oob stuff
+        this.checkBoundaries()
+        if(this.isOoB){
+            const centerX = gS.canvasWidth / 2
+            const centerY = gS.canvasHeight / 2
+            const angleToCenter = Math.atan2(centerY - this.y, centerX - this.x)
+            this.targetAngle = normalizeAngle(angleToCenter)
+            this.moveDirection = 'forward' // only move forward, angle will face center
+        } else {
+            this.targetAngle = this.angle
+            // change random dir based on timer
+            const currentTime = Date.now()
+            if ((currentTime - this.moveTime) > this.moveInterval) {
+                const moveChoose = rrand({min: 0, max: this.moveOptions.length -1})
+                this.moveDirection = this.moveOptions[moveChoose]
+                this.moveTime = currentTime
+            }
+        }
+
+        this.angle = normalizeAngle(this.angle) // normalize current angle
+
+        // handle rotate if angle not on target 
+        if(this.angle != this.targetAngle){
+            // shortest direction to rotate
+            let deltaAngle = this.targetAngle - this.angle;
+            if (Math.abs(deltaAngle) > Math.PI) {
+                deltaAngle = deltaAngle - (2 * Math.PI * Math.sign(deltaAngle));
+            }
+            // rotate towards the target angle by rotationSpeed
+            if (deltaAngle > 0) {
+                this.angle += Math.min(this.rotationSpeed, Math.abs(deltaAngle));
+            } else {
+                this.angle -= Math.min(this.rotationSpeed, Math.abs(deltaAngle));
+            }
         }
 
         // handle movement
@@ -130,7 +157,11 @@ Game.Enemy = class extends Game.Entity{
     }
     draw() {
         let ctx = Game.Settings.ctx
-        ctx.fillStyle = this.color
+        if(this.isOoB){
+            ctx.fillStyle = 'red' // oob color
+        } else {
+            ctx.fillStyle = this.color
+        }
         ctx.save()
         ctx.translate(this.x, this.y)
         ctx.rotate(this.angle)
@@ -138,7 +169,20 @@ Game.Enemy = class extends Game.Entity{
         ctx.restore() 
     }
     handleCollision(other){
-        this.color = 'red'
+        // this.color = 'red' // flag hit enemy in red
+        console.log('Hit')
+    }
+    checkBoundaries(){ 
+        const gS = Game.Settings
+        const margin = 50
+
+        if (this.x < margin || this.x > gS.canvasWidth - margin || 
+            this.y < margin || this.y > gS.canvasHeight - margin) {
+            this.isOoB = true
+        } else {
+            this.isOoB = false
+        }
+
     }
 }
 
@@ -277,6 +321,15 @@ const rrand = ({min = 0, max = 1} = {}) => {
     return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
+// normalize angle 
+const normalizeAngle = (angle) => {
+    angle = angle % (2 * Math.PI); 
+    if (angle < 0) {
+        angle += 2 * Math.PI; 
+    }
+    return angle;
+}
+
 ////////////////////////////////////////////////////
 // collision detection 
 ////////////////////////////////////////////////////
@@ -332,10 +385,12 @@ const checkCollision = (entity1, entity2) => {
 // game loop
 ////////////////////////////////////////////////////
 
+// spawn player & enemies
 Game.createPlayer({x: (Game.Settings.canvasWidth / 2), y: (Game.Settings.canvasHeight / 2), angle: 0})
 Game.createEnemy({x: 150, y: 100, angle: -0.2})
 Game.createEnemy({x: 600, y: 100, angle: 0.7})
 Game.createEnemy({x: 400, y: 500, angle: 0.45})
+
 
 function gameLoop() {
     // Clear Canvas
