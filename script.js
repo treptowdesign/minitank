@@ -78,7 +78,7 @@ const Game = {
 // enemy class
 ////////////////////////////////////////////////////
 Game.Enemy = class extends Game.Entity{
-    constructor({ x, y, angle, width = 30, height = 15, radius } = {}) {
+    constructor({ x, y, angle, width = 16, height = 10, radius } = {}) {
         super({ x, y, width, height, angle, radius })
         this.type = 'enemy'
         this.color = 'orange'
@@ -95,11 +95,11 @@ Game.Enemy = class extends Game.Entity{
         this.intervalOptions = [500, 1000, 1500]
         this.moveInterval = 1000 
         this.moveDirection = 'none'
-
         this.isOoB = false
         this.targetAngle = angle
-        
         this.isZoneOverlap = false
+
+        this.collideTime = 0
     }
     update() {
 
@@ -188,7 +188,7 @@ Game.Enemy = class extends Game.Entity{
             ctx.lineWidth = 2
             ctx.strokeStyle = this.isZoneOverlap ? 'lime' : '#ddd'
             ctx.beginPath()
-            ctx.arc(0, 0, this.getZone(3).radius, 0, 2 * Math.PI)
+            ctx.arc(0, 0, this.getZone(5).radius, 0, 2 * Math.PI)
             ctx.stroke()
         ctx.restore() 
     }
@@ -196,14 +196,18 @@ Game.Enemy = class extends Game.Entity{
         if(other.type == 'bullet'){
             console.log('Bullet Hit')
         } else if(other.type == 'enemy'){
-            console.log('COLLIDE!')
-            this.speed = -this.speed
+            const timestamp = Date.now()
+            if ((timestamp - this.collideTime) > 250) { // restrict collision to 1/4 sec 
+                console.log('COLLIDE!!!!')
+                this.collideTime = Date.now()
+                this.speed = -this.speed
+            }            
         }
     }
     checkBoundaries(){ 
         // world/canvas boundaries (OOB)
         const gS = Game.Settings
-        const margin = 50
+        const margin = 10
 
         if (this.x < margin || this.x > gS.canvasWidth - margin || 
             this.y < margin || this.y > gS.canvasHeight - margin) {
@@ -368,8 +372,6 @@ const checkCircleOverlap = (circle1, circle2) => {
     return distance < (circle1.radius + circle2.radius)
 }
 
-
-
 ////////////////////////////////////////////////////
 // collision detection (Separating Axis Theorem)
 ////////////////////////////////////////////////////
@@ -438,15 +440,16 @@ function gameLoop() {
     Game.Settings.ctx.clearRect(0, 0, Game.Settings.canvasWidth, Game.Settings.canvasHeight)
     // Update Entities 
     Game.entities.forEach(entity => entity.update())
+
     // Zone Overlaps
     const enemyEntities = Game.entities.filter((e) => { return e.type == 'enemy' })
     for (let i = 0; i < enemyEntities.length; i++) {
         for (let j = i + 1; j < enemyEntities.length; j++) {
-            if (checkCircleOverlap(enemyEntities[i].getZone(3), enemyEntities[j].getZone(3))) {
+            if (checkCircleOverlap(enemyEntities[i].getZone(5), enemyEntities[j].getZone(5))) {
                 // call zone overlap functions
                 enemyEntities[i].handleZoneOverlap(enemyEntities[j])
                 enemyEntities[j].handleZoneOverlap(enemyEntities[i])
-                // 
+                // check actual collision... 
                 if (checkCollision(enemyEntities[i], enemyEntities[j])) {
                     enemyEntities[i].handleCollision(enemyEntities[j])
                     enemyEntities[j].handleCollision(enemyEntities[i])
@@ -454,9 +457,10 @@ function gameLoop() {
             }
         }
     }
+
     // Collisions
     const bulletEntities = Game.entities.filter((e) => { return e.type == 'bullet' })
-    // re-use enemy...
+    // re-use enemy array from e-2-e checks
     if (bulletEntities.length && enemyEntities.length) {
         for (let i = 0; i < bulletEntities.length; i++) {
             for (let j = 0; j < enemyEntities.length; j++) {
@@ -467,6 +471,7 @@ function gameLoop() {
             }
         }
     }
+    
     // Draw Entities
     Game.entities.forEach(entity => entity.draw(Game.Settings.ctx))
     requestAnimationFrame(gameLoop)
