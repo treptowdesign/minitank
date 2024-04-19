@@ -75,6 +75,39 @@ const Game = {
     }
 }
 ////////////////////////////////////////////////////
+// utilities
+////////////////////////////////////////////////////
+
+// fps 
+const Utilities = {
+    fps: {
+        lastCalledTime: performance.now(),
+        current: 0, 
+        refreshLoop() {
+            const now = performance.now()
+            if (!this.lastCalledTime) {
+                this.lastCalledTime = now
+                this.current = 0
+                return
+            }
+            const delta = (now - this.lastCalledTime) / 1000
+            this.lastCalledTime = now
+            this.current = 1 / delta
+            requestAnimationFrame(this.refreshLoop.bind(this))
+        },
+        draw(ctx){
+            ctx.fillStyle = '#333'
+            ctx.fillText('FPS: '+this.current.toFixed(2), 10, 20)
+        }
+    }
+}
+
+Utilities.fps.refreshLoop()
+
+
+
+
+////////////////////////////////////////////////////
 // enemy class
 ////////////////////////////////////////////////////
 Game.Enemy = class extends Game.Entity{
@@ -82,14 +115,12 @@ Game.Enemy = class extends Game.Entity{
         super({ x, y, width, height, angle, radius })
         this.type = 'enemy'
         this.color = 'orange'
-
         this.speed = 0
         this.friction = 0.98
         this.rotationSpeed = 0.01
         this.acceleration = 0.03
         this.maxSpeed = 4
-
-        this.moveTime = Date.now()
+        this.moveTime = performance.now()
         this.moveOptions = ['forward', 'backward', 'none']
         this.turnOptions = ['left', 'right', 'none']
         this.intervalOptions = [500, 1000, 1500]
@@ -98,15 +129,23 @@ Game.Enemy = class extends Game.Entity{
         this.isOoB = false
         this.targetAngle = angle
         this.isZoneOverlap = false
-
         this.collideTime = 0
+        this.destinationTime = performance.now()
+        this.destinationPoint = {x: 0, y: 0}
+        this.fov = Math.PI / 2 // in radians
     }
     update() {
-
         const gS = Game.Settings
+        const currentTime = performance.now()
 
         // zone stuff 
         this.isZoneOverlap = false
+
+        // desintation point 
+        if ((currentTime - this.destinationTime) > 1000) { 
+            this.updateDestinationPoint()
+            this.destinationTime = currentTime
+        }
 
         // oob stuff
         this.checkBoundaries()
@@ -120,9 +159,11 @@ Game.Enemy = class extends Game.Entity{
         } else {
             this.targetAngle = this.angle
             this.color = 'orange'
-
+            // get angle from destination point 
+            const dp = this.destinationPoint
+            const angleToPoint = Math.atan2(dp.y, dp.x)
+            this.targetAngle = normalizeAngle(angleToPoint)
             // change random dir based on timer, randomize interval as well
-            const currentTime = Date.now()
             if ((currentTime - this.moveTime) > this.moveInterval) {
                 const moveChoose = rrand({min: 0, max: this.moveOptions.length -1})
                 this.moveDirection = this.moveOptions[moveChoose]
@@ -191,15 +232,22 @@ Game.Enemy = class extends Game.Entity{
             ctx.arc(0, 0, this.getZone(5).radius, 0, 2 * Math.PI)
             ctx.stroke()
         ctx.restore() 
+
+        // desination point 
+        ctx.lineWidth = 1
+        ctx.strokeStyle = 'red'
+        ctx.beginPath()
+        ctx.arc(this.x + this.destinationPoint.x, this.y + this.destinationPoint.y, 2, 0, 2 * Math.PI)
+        ctx.stroke()
     }
     handleCollision(other){
         if(other.type == 'bullet'){
             console.log('Bullet Hit')
         } else if(other.type == 'enemy'){
-            const timestamp = Date.now()
+            const timestamp = performance.now()
             if ((timestamp - this.collideTime) > 250) { // restrict collision to 1/4 sec 
                 console.log('COLLIDE!!!!')
-                this.collideTime = Date.now()
+                this.collideTime = performance.now()
                 this.speed = -this.speed
             }            
         }
@@ -220,6 +268,15 @@ Game.Enemy = class extends Game.Entity{
     handleZoneOverlap(other) {
         this.isZoneOverlap = true
     }
+    updateDestinationPoint(){
+        const minAngle = this.angle - (this.fov / 2)
+        const maxAngle = this.angle + (this.fov / 2)
+        const randomAngle = Math.random() * (maxAngle - minAngle) + minAngle
+        this.destinationPoint = {
+            x: this.getZone(5).radius * Math.cos(randomAngle), 
+            y: this.getZone(5).radius * Math.sin(randomAngle)
+        }
+    }
 }
 
 Game.createEnemy = function(args) {
@@ -227,6 +284,14 @@ Game.createEnemy = function(args) {
     this.addEntity(enemy)
     return enemy
 }
+
+////////////////////////////////////////////////////
+// barrier class
+////////////////////////////////////////////////////
+
+
+
+
 
 ////////////////////////////////////////////////////
 // bullet class
@@ -436,12 +501,12 @@ Game.createEnemy({x: 100, y: 300, angle: -0.45})
 
 
 function gameLoop() {
-    // Clear Canvas
+    // clear canvas
     Game.Settings.ctx.clearRect(0, 0, Game.Settings.canvasWidth, Game.Settings.canvasHeight)
-    // Update Entities 
+    // update entities 
     Game.entities.forEach(entity => entity.update())
 
-    // Zone Overlaps
+    // zone Overlaps (enemy to enemy)
     const enemyEntities = Game.entities.filter((e) => { return e.type == 'enemy' })
     for (let i = 0; i < enemyEntities.length; i++) {
         for (let j = i + 1; j < enemyEntities.length; j++) {
@@ -458,7 +523,7 @@ function gameLoop() {
         }
     }
 
-    // Collisions
+    // collisions (bullet to enemy)
     const bulletEntities = Game.entities.filter((e) => { return e.type == 'bullet' })
     // re-use enemy array from e-2-e checks
     if (bulletEntities.length && enemyEntities.length) {
@@ -471,9 +536,13 @@ function gameLoop() {
             }
         }
     }
-    
-    // Draw Entities
+
+    // draw entities
     Game.entities.forEach(entity => entity.draw(Game.Settings.ctx))
+
+    // display fps
+    Utilities.fps.draw(Game.Settings.ctx)
+
     requestAnimationFrame(gameLoop)
 }
 
