@@ -39,10 +39,11 @@ const Game = {
             this.height = height
             this.width = width 
             this.angle = angle
+            this.radius = Math.max(this.width, this.height)
         }
         update() {}
         draw(ctx) {}
-        handleCollision(){}
+        handleCollision() {}
         getVertices() { // for collision detect
             const vertices = []; 
             const angle = this.angle;
@@ -59,6 +60,10 @@ const Game = {
             });
             return vertices
         }
+        getZone(scale) {
+            return {x: this.x, y: this.y, radius: this.radius * (scale || 1)}
+        }
+        handleZoneOverlap() {}
     },
     entities: [],
     addEntity(entity) {
@@ -73,8 +78,8 @@ const Game = {
 // enemy class
 ////////////////////////////////////////////////////
 Game.Enemy = class extends Game.Entity{
-    constructor({ x, y, angle, width = 30, height = 15 } = {}) {
-        super({ x, y, width, height, angle })
+    constructor({ x, y, angle, width = 30, height = 15, radius } = {}) {
+        super({ x, y, width, height, angle, radius })
         this.type = 'enemy'
         this.color = 'orange'
 
@@ -87,15 +92,21 @@ Game.Enemy = class extends Game.Entity{
         this.moveTime = Date.now()
         this.moveOptions = ['forward', 'backward', 'none']
         this.turnOptions = ['left', 'right', 'none']
-        this.moveInterval = 1000 // 1 sec
+        this.intervalOptions = [500, 1000, 1500]
+        this.moveInterval = 1000 
         this.moveDirection = 'none'
 
         this.isOoB = false
         this.targetAngle = angle
+        
+        this.isZoneOverlap = false
     }
     update() {
 
         const gS = Game.Settings
+
+        // zone stuff 
+        this.isZoneOverlap = false
 
         // oob stuff
         this.checkBoundaries()
@@ -105,14 +116,19 @@ Game.Enemy = class extends Game.Entity{
             const angleToCenter = Math.atan2(centerY - this.y, centerX - this.x)
             this.targetAngle = normalizeAngle(angleToCenter)
             this.moveDirection = 'forward' // only move forward, angle will face center
+            this.color = 'red'
         } else {
             this.targetAngle = this.angle
-            // change random dir based on timer
+            this.color = 'orange'
+
+            // change random dir based on timer, randomize interval as well
             const currentTime = Date.now()
             if ((currentTime - this.moveTime) > this.moveInterval) {
                 const moveChoose = rrand({min: 0, max: this.moveOptions.length -1})
                 this.moveDirection = this.moveOptions[moveChoose]
                 this.moveTime = currentTime
+                const intervalChoose = rrand({min: 0, max: this.intervalOptions.length -1})
+                this.moveInterval = this.intervalOptions[intervalChoose] 
             }
         }
 
@@ -142,7 +158,7 @@ Game.Enemy = class extends Game.Entity{
             // no move
         }
 
-        // friction & max speed
+        // apply friction & max speed
         this.speed *= this.friction
         if (this.speed > this.maxSpeed) {
             this.speed = this.maxSpeed
@@ -155,24 +171,37 @@ Game.Enemy = class extends Game.Entity{
         this.y += Math.sin(this.angle) * this.speed
 
     }
-    draw() {
-        let ctx = Game.Settings.ctx
-        if(this.isOoB){
-            ctx.fillStyle = 'red' // oob color
-        } else {
-            ctx.fillStyle = this.color
-        }
+    draw(ctx) {
+        ctx.fillStyle = this.color
         ctx.save()
         ctx.translate(this.x, this.y)
         ctx.rotate(this.angle)
         ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height)
+            // front face
+            ctx.lineWidth = 2
+            ctx.strokeStyle = '#000'
+            ctx.beginPath();
+            ctx.moveTo(this.width / 2, -this.height / 2);
+            ctx.lineTo(this.width / 2, this.height / 2);
+            ctx.stroke();
+            // proximity circle
+            ctx.lineWidth = 2
+            ctx.strokeStyle = this.isZoneOverlap ? 'lime' : '#ddd'
+            ctx.beginPath()
+            ctx.arc(0, 0, this.getZone(3).radius, 0, 2 * Math.PI)
+            ctx.stroke()
         ctx.restore() 
     }
     handleCollision(other){
-        // this.color = 'red' // flag hit enemy in red
-        console.log('Hit')
+        if(other.type == 'bullet'){
+            console.log('Bullet Hit')
+        } else if(other.type == 'enemy'){
+            console.log('COLLIDE!')
+            this.speed = -this.speed
+        }
     }
     checkBoundaries(){ 
+        // world/canvas boundaries (OOB)
         const gS = Game.Settings
         const margin = 50
 
@@ -183,6 +212,9 @@ Game.Enemy = class extends Game.Entity{
             this.isOoB = false
         }
 
+    }
+    handleZoneOverlap(other) {
+        this.isZoneOverlap = true
     }
 }
 
@@ -209,8 +241,7 @@ Game.Bullet = class extends Game.Entity{
             Game.removeEntity(this)
         }
     }
-    draw() {
-        let ctx = Game.Settings.ctx
+    draw(ctx) {
         ctx.fillStyle = 'red'
         ctx.save()
         ctx.translate(this.x, this.y)
@@ -268,8 +299,7 @@ Game.Player = class extends Game.Entity {
         this.x += Math.cos(this.angle) * this.speed
         this.y += Math.sin(this.angle) * this.speed
     }
-    draw() {
-        let ctx = Game.Settings.ctx
+    draw(ctx) {
 
         // tank
         ctx.save()
@@ -278,6 +308,7 @@ Game.Player = class extends Game.Entity {
         ctx.fillStyle = 'black'
         ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height)
         ctx.fillStyle = 'yellow'
+        ctx.beginPath()
         ctx.arc(0, 0, 2, 0, Math.PI * 2)
         ctx.fill()
         ctx.restore()
@@ -323,15 +354,24 @@ const rrand = ({min = 0, max = 1} = {}) => {
 
 // normalize angle 
 const normalizeAngle = (angle) => {
-    angle = angle % (2 * Math.PI); 
-    if (angle < 0) {
-        angle += 2 * Math.PI; 
-    }
-    return angle;
+    return (angle + (2 * Math.PI)) % (2 * Math.PI)
 }
 
 ////////////////////////////////////////////////////
-// collision detection 
+// collision detection (Circle-to-Circle)
+////////////////////////////////////////////////////
+
+const checkCircleOverlap = (circle1, circle2) => {
+    const dx = circle1.x - circle2.x
+    const dy = circle1.y - circle2.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    return distance < (circle1.radius + circle2.radius)
+}
+
+
+
+////////////////////////////////////////////////////
+// collision detection (Separating Axis Theorem)
 ////////////////////////////////////////////////////
 
 const projectAxis = (vertices, axis) => {
@@ -390,6 +430,7 @@ Game.createPlayer({x: (Game.Settings.canvasWidth / 2), y: (Game.Settings.canvasH
 Game.createEnemy({x: 150, y: 100, angle: -0.2})
 Game.createEnemy({x: 600, y: 100, angle: 0.7})
 Game.createEnemy({x: 400, y: 500, angle: 0.45})
+Game.createEnemy({x: 100, y: 300, angle: -0.45})
 
 
 function gameLoop() {
@@ -397,10 +438,26 @@ function gameLoop() {
     Game.Settings.ctx.clearRect(0, 0, Game.Settings.canvasWidth, Game.Settings.canvasHeight)
     // Update Entities 
     Game.entities.forEach(entity => entity.update())
-    // Collisions Loop(s) 
-    const bulletEntities = Game.entities.filter((e) => { return e.type == 'bullet' })
+    // Zone Overlaps
     const enemyEntities = Game.entities.filter((e) => { return e.type == 'enemy' })
-    if(bulletEntities.length && enemyEntities.length){
+    for (let i = 0; i < enemyEntities.length; i++) {
+        for (let j = i + 1; j < enemyEntities.length; j++) {
+            if (checkCircleOverlap(enemyEntities[i].getZone(3), enemyEntities[j].getZone(3))) {
+                // call zone overlap functions
+                enemyEntities[i].handleZoneOverlap(enemyEntities[j])
+                enemyEntities[j].handleZoneOverlap(enemyEntities[i])
+                // 
+                if (checkCollision(enemyEntities[i], enemyEntities[j])) {
+                    enemyEntities[i].handleCollision(enemyEntities[j])
+                    enemyEntities[j].handleCollision(enemyEntities[i])
+                }
+            }
+        }
+    }
+    // Collisions
+    const bulletEntities = Game.entities.filter((e) => { return e.type == 'bullet' })
+    // re-use enemy...
+    if (bulletEntities.length && enemyEntities.length) {
         for (let i = 0; i < bulletEntities.length; i++) {
             for (let j = 0; j < enemyEntities.length; j++) {
                 if (checkCollision(bulletEntities[i], enemyEntities[j])) {
@@ -411,7 +468,7 @@ function gameLoop() {
         }
     }
     // Draw Entities
-    Game.entities.forEach(entity => entity.draw())
+    Game.entities.forEach(entity => entity.draw(Game.Settings.ctx))
     requestAnimationFrame(gameLoop)
 }
 

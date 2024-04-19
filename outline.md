@@ -51,6 +51,8 @@ Game.Enemy = class extends Game.Entity {
 
 # Notes
 
+- Separating Axis Theorem
+
 // Collisions Loop (All entities)
     console.log(Game.entities.length)
     for (let i = 0; i < Game.entities.length; i++) {
@@ -61,3 +63,24 @@ Game.Enemy = class extends Game.Entity {
             }
         }
     }
+
+
+# Quad Tree example
+
+https://codepen.io/MatthewWid/pen/pBxGKj?editors=0010
+
+
+# normalize angle 
+
+const normalizeAngle = (angle) => {
+    return (angle + (2 * Math.PI)) % (2 * Math.PI) 
+}
+
+
+const normalizeAngle2 = (angle) => {
+    angle = angle % (2 * Math.PI)
+    if (angle < 0) {
+        angle += 2 * Math.PI
+    }
+    return angle;
+}
