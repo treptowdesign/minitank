@@ -243,14 +243,14 @@ Game.Enemy = class extends Game.Entity{
         ctx.stroke()
 
         // mark avoids 
-        for(let a = 0; a < this.avoids.length; a++){
-            ctx.lineWidth = 1
-            ctx.strokeStyle = this.avoids[a].color
-            ctx.beginPath()
-            ctx.moveTo(this.x, this.y)
-            ctx.lineTo(this.avoids[a].x, this.avoids[a].y)
-            ctx.stroke()
-        }
+        // for(let a = 0; a < this.avoids.length; a++){
+        //     ctx.lineWidth = 1
+        //     ctx.strokeStyle = this.avoids[a].color
+        //     ctx.beginPath()
+        //     ctx.moveTo(this.x, this.y)
+        //     ctx.lineTo(this.avoids[a].x, this.avoids[a].y)
+        //     ctx.stroke()
+        // }
 
     }
     handleCollision(other){
@@ -283,12 +283,12 @@ Game.Enemy = class extends Game.Entity{
     handleZoneOverlap(other) {
         this.isZoneOverlap = true
         if(other.type == 'barrier'){
-            const item = {
-                x: other.x,
-                y: other.y,
-                color: 'blue'
-            }
-            this.avoids.push(item)
+            // const item = {
+            //     x: other.x,
+            //     y: other.y,
+            //     color: 'blue'
+            // }
+            // this.avoids.push(item)
         }
     }
     randomDestinationPoint(){
