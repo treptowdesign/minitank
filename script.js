@@ -134,7 +134,6 @@ Game.Enemy = class extends Game.Entity{
         this.destinationTime = null
         this.destinationPoint = {x: 0, y: 0}
         this.fov = Math.PI / 2 // in radians
-        this.avoids = []
     }
     update() {
         const gS = Game.Settings
@@ -143,29 +142,11 @@ Game.Enemy = class extends Game.Entity{
         // zone stuff 
         this.isZoneOverlap = false
 
-        // avoids
-        if(this.avoids.length){
-            const minAngle = this.angle - (this.fov / 2)
-            const maxAngle = this.angle + (this.fov / 2)
-            for(let a = 0; a < this.avoids.length; a++){
-                const avoidAngle = Math.atan2(this.avoids[a].y - this.y, this.avoids[a].x - this.x)
-                if(avoidAngle >= minAngle && avoidAngle <= maxAngle){
-                    const target = (maxAngle - avoidAngle) > (avoidAngle - minAngle) ? minAngle : maxAngle
-                    // this.destinationPoint = {
-                    //     x: this.getZone(1).radius * Math.cos(target), 
-                    //     y: this.getZone(1).radius * Math.sin(target)
-                    // }
-                }
-            }
-        }
-        
         // desintation point 
         if (!this.destinationTime || (currentTime - this.destinationTime) > 3000) { 
             this.randomDestinationPoint()
             this.destinationTime = currentTime
         }
-
-        this.avoids = [] // clear avoids array
 
         // oob stuff
         this.checkBoundaries()

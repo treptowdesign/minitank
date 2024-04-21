@@ -47,6 +47,22 @@ Game.Enemy = class extends Game.Entity {
     }
 };
 
+# Avoids system...
+// avoids
+        if(this.avoids.length){
+            const minAngle = this.angle - (this.fov / 2)
+            const maxAngle = this.angle + (this.fov / 2)
+            for(let a = 0; a < this.avoids.length; a++){
+                const avoidAngle = Math.atan2(this.avoids[a].y - this.y, this.avoids[a].x - this.x)
+                if(avoidAngle >= minAngle && avoidAngle <= maxAngle){
+                    const target = (maxAngle - avoidAngle) > (avoidAngle - minAngle) ? minAngle : maxAngle
+                    // this.destinationPoint = {
+                    //     x: this.getZone(1).radius * Math.cos(target), 
+                    //     y: this.getZone(1).radius * Math.sin(target)
+                    // }
+                }
+            }
+        }
 
 
 # Notes
