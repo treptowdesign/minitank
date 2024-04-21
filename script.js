@@ -142,13 +142,30 @@ Game.Enemy = class extends Game.Entity{
 
         // zone stuff 
         this.isZoneOverlap = false
-        this.avoids = []
+
+        // avoids
+        if(this.avoids.length){
+            const minAngle = this.angle - (this.fov / 2)
+            const maxAngle = this.angle + (this.fov / 2)
+            for(let a = 0; a < this.avoids.length; a++){
+                const avoidAngle = Math.atan2(this.avoids[a].y - this.y, this.avoids[a].x - this.x)
+                if(avoidAngle >= minAngle && avoidAngle <= maxAngle){
+                    const target = (maxAngle - avoidAngle) > (avoidAngle - minAngle) ? minAngle : maxAngle
+                    // this.destinationPoint = {
+                    //     x: this.getZone(1).radius * Math.cos(target), 
+                    //     y: this.getZone(1).radius * Math.sin(target)
+                    // }
+                }
+            }
+        }
         
         // desintation point 
         if (!this.destinationTime || (currentTime - this.destinationTime) > 3000) { 
-            this.updateDestinationPoint()
+            this.randomDestinationPoint()
             this.destinationTime = currentTime
         }
+
+        this.avoids = [] // clear avoids array
 
         // oob stuff
         this.checkBoundaries()
@@ -170,6 +187,7 @@ Game.Enemy = class extends Game.Entity{
             if ((currentTime - this.moveTime) > this.moveInterval) {
                 const moveChoose = rrand({min: 0, max: this.moveOptions.length -1})
                 this.moveDirection = this.moveOptions[moveChoose]
+                // this.moveDirection = 'forward'
                 this.moveTime = currentTime
                 const intervalChoose = rrand({min: 0, max: this.intervalOptions.length -1})
                 this.moveInterval = this.intervalOptions[intervalChoose] 
@@ -246,11 +264,11 @@ Game.Enemy = class extends Game.Entity{
         // mark avoids 
         for(let a = 0; a < this.avoids.length; a++){
             ctx.lineWidth = 1
-            ctx.strokeStyle = 'red'
-            ctx.beginPath();
-            ctx.moveTo(this.x, this.y);
-            ctx.lineTo(this.avoids[a].x, this.avoids[a].y);
-            ctx.stroke();
+            ctx.strokeStyle = this.avoids[a].color
+            ctx.beginPath()
+            ctx.moveTo(this.x, this.y)
+            ctx.lineTo(this.avoids[a].x, this.avoids[a].y)
+            ctx.stroke()
         }
 
     }
@@ -263,7 +281,6 @@ Game.Enemy = class extends Game.Entity{
         ){
             const timestamp = performance.now()
             if ((timestamp - this.collideTime) > 250) { // restrict collision to 1/4 sec 
-                // console.log('COLLIDE!!!!')
                 this.collideTime = performance.now()
                 this.speed = -this.speed
             }            
@@ -287,12 +304,13 @@ Game.Enemy = class extends Game.Entity{
         if(other.type == 'barrier'){
             const item = {
                 x: other.x,
-                y: other.y
+                y: other.y,
+                color: 'blue'
             }
             this.avoids.push(item)
         }
     }
-    updateDestinationPoint(){
+    randomDestinationPoint(){
         const minAngle = this.angle - (this.fov / 2)
         const maxAngle = this.angle + (this.fov / 2)
         const randomAngle = Math.random() * (maxAngle - minAngle) + minAngle
