@@ -100,3 +100,72 @@ const normalizeAngle2 = (angle) => {
     }
     return angle;
 }
+
+# Caching Entity properties: 
+
+class Entity {
+    constructor({ x = 0, y = 0, width = 10, height = 10, angle = 0 } = {}) {
+        this._x = x;
+        this._y = y;
+        this._width = width;
+        this._height = height;
+        this._angle = angle;
+        this._vertices = null; // This will store the cache of vertices
+    }
+
+    updateVertices() {
+        const angle = this._angle;
+        const corners = [
+            { x: -this._width / 2, y: -this._height / 2 },
+            { x: this._width / 2, y: -this._height / 2 },
+            { x: this._width / 2, y: this._height / 2 },
+            { x: -this._width / 2, y: this._height / 2 }
+        ];
+        this._vertices = corners.map(corner => ({
+            x: this._x + (corner.x * Math.cos(angle) - corner.y * Math.sin(angle)),
+            y: this._y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle))
+        }));
+    }
+
+    get vertices() {
+        if (!this._vertices) { // Only recalculate if the cache is empty
+            this.updateVertices();
+        }
+        return this._vertices;
+    }
+
+    set x(value) {
+        if (value !== this._x) {
+            this._x = value;
+            this._vertices = null; // Invalidate cache
+        }
+    }
+
+    set y(value) {
+        if (value !== this._y) {
+            this._y = value;
+            this._vertices = null; // Invalidate cache
+        }
+    }
+
+    set width(value) {
+        if (value !== this._width) {
+            this._width = value;
+            this._vertices = null; // Invalidate cache
+        }
+    }
+
+    set height(value) {
+        if (value !== this._height) {
+            this._height = value;
+            this._vertices = null; // Invalidate cache
+        }
+    }
+
+    set angle(value) {
+        if (value !== this._angle) {
+            this._angle = value;
+            this._vertices = null; // Invalidate cache
+        }
+    }
+}

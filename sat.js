@@ -1,5 +1,9 @@
 console.log('Script for SAT demo')
 
+////////////////////////////////////////////////////
+// settings / globals
+////////////////////////////////////////////////////
+
 const Settings = {
     canvas: document.getElementById('gameCanvas'),
     ctx: document.getElementById('gameCanvas').getContext('2d'),
@@ -7,24 +11,33 @@ const Settings = {
     canvasHeight: 600
 }
 
+////////////////////////////////////////////////////
+// inputs 
+////////////////////////////////////////////////////
+
 const Input = {
-    mousePos: {x: 0, y: 0},
-    mouseDown: false,
+    state: {
+        mousePos: {x: 0, y: 0},
+        mouseDown: false
+    },
     initialize(canvas){
-        const that = this
-        canvas.addEventListener('mousedown', function(event) {
-            console.log('MouseDown')
+        canvas.addEventListener('mousedown', (event) => {
+            this.state.mouseDown = true
         })
-        canvas.addEventListener('mousedown', function(event) {
-            console.log('MouseUp')
+        canvas.addEventListener('mouseup', (event) => {
+            this.state.mouseDown = false
         })
-        canvas.addEventListener('mousemove', function(event) {
+        canvas.addEventListener('mousemove', (event) => {
             const rect = canvas.getBoundingClientRect();
-            that.mousePos.x = event.clientX - rect.left;
-            that.mousePos.y = event.clientY - rect.top;
+            this.state.mousePos.x = event.clientX - rect.left;
+            this.state.mousePos.y = event.clientY - rect.top;
         })
     }
 }
+
+////////////////////////////////////////////////////
+// utilities
+////////////////////////////////////////////////////
 
 const Utilities = {
     fps: {
@@ -52,7 +65,9 @@ const Utilities = {
     }
 }
 
-Utilities.fps.refreshLoop()
+////////////////////////////////////////////////////
+// entities
+////////////////////////////////////////////////////
 
 class Entity {
     constructor({ x = 0, y = 0, width = 10, height = 10, angle = 0 } = {}) {
@@ -61,20 +76,35 @@ class Entity {
         this.height = height
         this.width = width 
         this.angle = angle 
-        this.color = 'black'
+        this.fillColor = 'black'
+        this.strokeColor = 'white'
     }
-    update() {
-        // console.log('UPDATE')
+    update(input) {
+        const hover = this.containsPoint(input.mousePos)
+        const click = input.mouseDown
+        this.fillColor = hover ? 'red' : 'black'
+        if(click && hover){
+            this.x = input.mousePos.x
+            this.y = input.mousePos.y
+        }
+        this.strokeColor = 'white' // reset stroke color
     }
     draw(ctx) {
-        ctx.fillStyle = this.color
+        ctx.fillStyle = this.fillColor
         ctx.save()
         ctx.translate(this.x, this.y)
         ctx.rotate(this.angle)
-        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height)
+        ctx.lineWidth = 2
+        ctx.strokeStyle = this.strokeColor
+        ctx.beginPath()
+        ctx.rect(-this.width / 2, -this.height / 2, this.width, this.height)
+        ctx.fill()
+        ctx.stroke()
         ctx.restore() 
     }
-    handleCollision() {}
+    handleCollision() {
+        this.strokeColor = 'green'
+    }
     getVertices() { // for collision detect
         const vertices = []; 
         const angle = this.angle;
@@ -168,25 +198,29 @@ const checkCollision = (entity1, entity2) => {
 ////////////////////////////////////////////////////
 
 Input.initialize(Settings.canvas)
+Utilities.fps.refreshLoop()
 
-addEntity({x: 50, y: 100, height: 60, width: 60, angle: 0})
-addEntity({x: 150, y: 200, height: 70, width: 40, angle: 1.5})
+addEntity({x: 150, y: 100, height: 120, width: 80, angle: 0})
+addEntity({x: 350, y: 200, height: 140, width: 70, angle: 2.35})
 
 function gameLoop() {
 
     Settings.ctx.clearRect(0, 0, Settings.canvasWidth, Settings.canvasHeight)
 
-    entities.forEach(entity => {
-        entity.update()
-        entity.draw(Settings.ctx)
-        if (entity.containsPoint(Input.mousePos)) {
-            entity.color = 'red'
-        } else {
-            entity.color = 'black'
-        }
-    })
+    entities.forEach(entity => {  entity.update(Input.state) }) 
 
-    Utilities.fps.draw(Settings.ctx, ('x: '+Input.mousePos.x +', y:'+Input.mousePos.y))
+    for (let i = 0; i < entities.length; i++) {
+        for (let j = i + 1; j < entities.length; j++) {
+            if (checkCollision(entities[i], entities[j])) {
+                entities[i].handleCollision(entities[j])
+                entities[j].handleCollision(entities[i])
+            }
+        }
+    }
+
+    entities.forEach(entity => { entity.draw(Settings.ctx) })
+
+    Utilities.fps.draw(Settings.ctx, ('x: '+Input.state.mousePos.x +', y:'+Input.state.mousePos.y))
 
     requestAnimationFrame(gameLoop)
 }
