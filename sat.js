@@ -199,7 +199,7 @@ class Entity {
             // startpoint
             const startX = edge.midpoint.x;
             const startY = edge.midpoint.y;
-            normalLines.push({startX: startX, startY: startY, normalX: normalX, normalY: normalY})
+            normalLines.push({startX: startX, startY: startY, normalX: normalX, normalY: normalY, normalAngle: normalAngle})
         });
         return normalLines
     }
@@ -268,32 +268,35 @@ const addEntity = (args) => {
 // }
 
 const drawPerpendicularLines = (ctx, point, normalLine, canvasWidth, canvasHeight) => {
-    const { x, y } = point
+    const { x, y } = point;
+    const length = 20
 
-    // calculate the slope of the normal line
-    const slope = (normalLine.normalY !== 0) ? -(normalLine.normalX / normalLine.normalY) : Infinity
+    const perpendicularAngle = normalLine.normalAngle + Math.PI / 2;
 
-    // calculate the endpoint of the perpendicular line on one side
-    const x1 = x + 50 // adjust length as needed
-    const y1 = y + 50 * slope
+    // Calculate the endpoint of the perpendicular line on one side
+    const x1 = x + length * Math.cos(perpendicularAngle);
+    const y1 = y + length * Math.sin(perpendicularAngle);
 
-    // calc the endpoint of the perpendicular line on the other side
-    const x2 = x - 50 // length
-    const y2 = y - 50 * slope
+    // Calculate the endpoint of the perpendicular line on the other side
+    const x2 = x - length * Math.cos(perpendicularAngle);
+    const y2 = y - length * Math.sin(perpendicularAngle);
 
-    // draw
-    ctx.strokeStyle = '#0000ff'
-    ctx.setLineDash([3, 3]) // dashed line
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    ctx.lineTo(x1, y1)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    ctx.lineTo(x2, y2)
-    ctx.stroke()
-    ctx.setLineDash([]) // reset
-}
+    // Draw the perpendicular lines
+    ctx.strokeStyle = 'blue';
+    ctx.setLineDash([3, 3]); // dashed line
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    
+    ctx.setLineDash([]); // reset
+};
+
 
 
 const drawExtendedNormalLines = (ctx, entity, settings) => {
