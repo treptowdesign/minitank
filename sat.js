@@ -109,6 +109,11 @@ class Entity {
         ctx.fill()
         ctx.stroke()
         ctx.restore() 
+
+        this.drawVertices(ctx)
+        this.drawEdgePoints(ctx)
+        this.drawCenter(ctx)
+        this.drawNormals(ctx)
     }
     handleCollision() {
         this.strokeColor = 'red'
@@ -121,12 +126,12 @@ class Entity {
             { x: this.width / 2, y: -this.height / 2 },
             { x: this.width / 2, y: this.height / 2 },
             { x: -this.width / 2, y: this.height / 2 }
-        ];
+        ]
         corners.forEach(corner => {
             const rotatedX = this.x + (corner.x * Math.cos(angle) - corner.y * Math.sin(angle))
             const rotatedY = this.y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle))
             vertices.push({ x: rotatedX, y: rotatedY })
-        });
+        })
         return vertices
     }
     containsPoint(point) {
@@ -140,6 +145,103 @@ class Entity {
         }
         return contains;
     }
+
+    getVertices() { // for collision detect
+        const vertices = []; 
+        const angle = this.angle;
+        const corners = [
+            { x: -this.width / 2, y: -this.height / 2 },
+            { x: this.width / 2, y: -this.height / 2 },
+            { x: this.width / 2, y: this.height / 2 },
+            { x: -this.width / 2, y: this.height / 2 }
+        ]
+        corners.forEach(corner => {
+            const rotatedX = this.x + (corner.x * Math.cos(angle) - corner.y * Math.sin(angle))
+            const rotatedY = this.y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle))
+            vertices.push({ x: rotatedX, y: rotatedY })
+        })
+        return vertices
+    }
+    getEdges(){
+        const vertices = this.getVertices()
+        const edges = []
+        for (let i = 0; i < vertices.length; i++) {
+            const nextIndex = (i + 1) % vertices.length;
+            const midpoint = {
+                x: (vertices[i].x + vertices[nextIndex].x) / 2,
+                y: (vertices[i].y + vertices[nextIndex].y) / 2
+            };
+            const dx = vertices[nextIndex].x - vertices[i].x
+            const dy = vertices[nextIndex].y - vertices[i].y
+            const angleRadians = Math.atan2(dy, dx)
+            const edge = {
+                start: vertices[i],
+                end: vertices[nextIndex],
+                midpoint: midpoint,
+                angle: angleRadians
+            }
+            edges.push(edge)
+        }
+        return edges
+    }
+    getCenter(){
+        const vertices = this.getVertices()
+        return vertices.reduce((acc, v) => ({ x: acc.x + v.x / vertices.length, y: acc.y + v.y / vertices.length }), { x: 0, y: 0 })
+    }
+    getNormalLines(length){
+        const edges = this.getEdges();
+        const normalLines = []
+        edges.forEach(edge => {
+            const normalAngle = edge.angle + Math.PI / 2; // rotate pi/2 radians (90deg)
+            // endpoint 20px length
+            const normalX = Math.cos(normalAngle) * length;
+            const normalY = Math.sin(normalAngle) * length;
+            // startpoint
+            const startX = edge.midpoint.x;
+            const startY = edge.midpoint.y;
+            normalLines.push({startX: startX, startY: startY, normalX: normalX, normalY: normalY})
+        });
+        return normalLines
+    }
+
+    drawVertices(ctx) {
+        const vertices = this.getVertices()
+        vertices.forEach(vertex => {
+            ctx.lineWidth = 1
+            ctx.strokeStyle = '#00ff00'
+            ctx.beginPath()
+            ctx.arc(vertex.x, vertex.y, 4, 0, Math.PI * 2)
+            ctx.stroke()
+        })
+    }
+    drawEdgePoints(ctx){
+        const edges = this.getEdges()
+        ctx.strokeStyle = '#0000ff'
+        ctx.fillStyle = '#ffffff'
+        for (let i = 0; i < edges.length; i++) {
+            ctx.beginPath()
+            ctx.arc(edges[i].midpoint.x, edges[i].midpoint.y, 4, 0, Math.PI * 2)
+            ctx.stroke()
+            ctx.fillText(edges[i].angle.toFixed(2), edges[i].midpoint.x + 5, edges[i].midpoint.y - 5)
+        }
+    }
+    drawCenter(ctx){
+        const center = this.getCenter()
+        ctx.fillStyle = '#0000ff'
+        ctx.beginPath()
+        ctx.arc(center.x, center.y, 4, 0, Math.PI * 2)
+        ctx.fill()
+    }
+    drawNormals(ctx) {
+        const normals = this.getNormalLines(20)
+        ctx.strokeStyle = '#ff00ff'; 
+        normals.forEach(normal => {
+            ctx.beginPath();
+            ctx.moveTo(normal.startX, normal.startY);
+            ctx.lineTo(normal.startX + normal.normalX, normal.startY + normal.normalY);
+            ctx.stroke();
+        });
+    }
 }
 
 const entities = []
@@ -149,6 +251,85 @@ const addEntity = (args) => {
     entities.push(entity)
     return entity 
 }
+
+
+////////////////////////////////////////////////////
+// Extending Normals out to Canvas Edge
+////////////////////////////////////////////////////
+
+
+const drawExtendedNormalLines = (ctx, entity, settings) => {
+    const normalLines = entity.getNormalLines(20); // get normal lines with initial length
+    normalLines.forEach(line => {
+        const extendedEnd = extendLineToCanvasEdge(line, settings.canvasWidth, settings.canvasHeight);
+        // draw the dashed line
+        ctx.setLineDash([5, 5]); // dashed line
+        ctx.beginPath();
+        ctx.moveTo(line.startX, line.startY);
+        ctx.lineTo(extendedEnd.x, extendedEnd.y);
+        ctx.stroke();
+        ctx.setLineDash([]); // reset
+        // circle at the edge
+        ctx.fillStyle = '#ff00ff'
+        ctx.beginPath();
+        ctx.arc(extendedEnd.x, extendedEnd.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+const extendLineToCanvasEdge = (line, canvasWidth, canvasHeight) => {
+    const { startX, startY, normalX, normalY } = line;
+    let minDist = Infinity;
+    let closestIntersection = null;
+
+    // calculate intersections with each canvas edge
+    if (normalX !== 0) {
+        let tRight = (canvasWidth - startX) / normalX;
+        let yRight = startY + tRight * normalY;
+        if (yRight >= 0 && yRight <= canvasHeight && tRight > 0) {
+            let dist = tRight * Math.hypot(normalX, normalY);
+            if (dist < minDist) {
+                minDist = dist;
+                closestIntersection = { x: canvasWidth, y: yRight };
+            }
+        }
+
+        let tLeft = -startX / normalX;
+        let yLeft = startY + tLeft * normalY;
+        if (yLeft >= 0 && yLeft <= canvasHeight && tLeft > 0) {
+            let dist = tLeft * Math.hypot(normalX, normalY);
+            if (dist < minDist) {
+                minDist = dist;
+                closestIntersection = { x: 0, y: yLeft };
+            }
+        }
+    }
+
+    if (normalY !== 0) {
+        let tBottom = (canvasHeight - startY) / normalY;
+        let xBottom = startX + tBottom * normalX;
+        if (xBottom >= 0 && xBottom <= canvasWidth && tBottom > 0) {
+            let dist = tBottom * Math.hypot(normalX, normalY);
+            if (dist < minDist) {
+                minDist = dist;
+                closestIntersection = { x: xBottom, y: canvasHeight };
+            }
+        }
+
+        let tTop = -startY / normalY;
+        let xTop = startX + tTop * normalX;
+        if (xTop >= 0 && xTop <= canvasWidth && tTop > 0) {
+            let dist = tTop * Math.hypot(normalX, normalY);
+            if (dist < minDist) {
+                minDist = dist;
+                closestIntersection = { x: xTop, y: 0 };
+            }
+        }
+    }
+
+    return closestIntersection;
+};
+
 
 ////////////////////////////////////////////////////
 // collision detection 
@@ -201,6 +382,7 @@ const checkCollision = (entity1, entity2) => {
 }
 
 
+
 ////////////////////////////////////////////////////
 // loop 
 ////////////////////////////////////////////////////
@@ -208,14 +390,19 @@ const checkCollision = (entity1, entity2) => {
 Input.initialize(Settings.canvas)
 Utilities.fps.refreshLoop()
 
-addEntity({x: 150, y: 100, height: 120, width: 80, angle: 0})
-addEntity({x: 350, y: 200, height: 140, width: 70, angle: 2.35})
+addEntity({x: 260, y: 200, height: 120, width: 80, angle: 0})
+addEntity({x: 520, y: 230, height: 140, width: 70, angle: 2.35})
 
 function gameLoop() {
 
     Settings.ctx.clearRect(0, 0, Settings.canvasWidth, Settings.canvasHeight)
 
-    entities.forEach(entity => {  entity.update(Input.state) }) 
+    // entities.forEach(entity => {  entity.update(Input.state) }) 
+
+    entities.forEach(entity => {
+        entity.update(Input.state);
+        drawExtendedNormalLines(Settings.ctx, entity, Settings);
+    });
 
     for (let i = 0; i < entities.length; i++) {
         for (let j = i + 1; j < entities.length; j++) {
@@ -233,6 +420,5 @@ function gameLoop() {
     requestAnimationFrame(gameLoop)
 }
 
-// Game.Input.initialize() // init keybinds 
 
 gameLoop()
