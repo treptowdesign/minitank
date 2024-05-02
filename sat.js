@@ -145,23 +145,6 @@ class Entity {
         }
         return contains;
     }
-
-    getVertices() { // for collision detect
-        const vertices = []; 
-        const angle = this.angle;
-        const corners = [
-            { x: -this.width / 2, y: -this.height / 2 },
-            { x: this.width / 2, y: -this.height / 2 },
-            { x: this.width / 2, y: this.height / 2 },
-            { x: -this.width / 2, y: this.height / 2 }
-        ]
-        corners.forEach(corner => {
-            const rotatedX = this.x + (corner.x * Math.cos(angle) - corner.y * Math.sin(angle))
-            const rotatedY = this.y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle))
-            vertices.push({ x: rotatedX, y: rotatedY })
-        })
-        return vertices
-    }
     getEdges(){
         const vertices = this.getVertices()
         const edges = []
