@@ -269,11 +269,20 @@ const drawExtendedNormalLines = (ctx, entity, settings) => {
         ctx.lineTo(extendedEnd.x, extendedEnd.y);
         ctx.stroke();
         ctx.setLineDash([]); // reset
-        // circle at the edge
+        // circle at the canvas edge
         ctx.fillStyle = '#ff00ff'
         ctx.beginPath();
-        ctx.arc(extendedEnd.x, extendedEnd.y, 6, 0, Math.PI * 2);
+        ctx.arc(extendedEnd.x, extendedEnd.y, 4, 0, Math.PI * 2);
         ctx.fill();
+        // midpoint circle 
+        const midpoint = {
+            x: (line.startX + extendedEnd.x) / 2,
+            y: (line.startY + extendedEnd.y) / 2
+        }
+        ctx.strokeStyle = '#ff00ff'
+        ctx.beginPath();
+        ctx.arc(midpoint.x, midpoint.y, 4, 0, Math.PI * 2);
+        ctx.stroke();
     });
 }
 
