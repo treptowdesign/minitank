@@ -258,11 +258,50 @@ const addEntity = (args) => {
 ////////////////////////////////////////////////////
 
 
+// const percentLine = (line, percentage) => {
+//     const { startX, startY, endX, endY } = line;
+//     const point = {
+//         x: startX + (endX - startX) * percentage / 100,
+//         y: startY + (endY - startY) * percentage / 100
+//     };
+//     return point;
+// }
+
+const drawPerpendicularLines = (ctx, point, normalLine, canvasWidth, canvasHeight) => {
+    const { x, y } = point
+
+    // calculate the slope of the normal line
+    const slope = (normalLine.normalY !== 0) ? -(normalLine.normalX / normalLine.normalY) : Infinity
+
+    // calculate the endpoint of the perpendicular line on one side
+    const x1 = x + 50 // adjust length as needed
+    const y1 = y + 50 * slope
+
+    // calc the endpoint of the perpendicular line on the other side
+    const x2 = x - 50 // length
+    const y2 = y - 50 * slope
+
+    // draw
+    ctx.strokeStyle = '#0000ff'
+    ctx.setLineDash([3, 3]) // dashed line
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(x1, y1)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(x2, y2)
+    ctx.stroke()
+    ctx.setLineDash([]) // reset
+}
+
+
 const drawExtendedNormalLines = (ctx, entity, settings) => {
     const normalLines = entity.getNormalLines(20); // get normal lines with initial length
     normalLines.forEach(line => {
         const extendedEnd = extendLineToCanvasEdge(line, settings.canvasWidth, settings.canvasHeight);
         // draw the dashed line
+        ctx.strokeStyle = '#ff00ff'
         ctx.setLineDash([5, 5]); // dashed line
         ctx.beginPath();
         ctx.moveTo(line.startX, line.startY);
@@ -283,6 +322,18 @@ const drawExtendedNormalLines = (ctx, entity, settings) => {
         ctx.beginPath();
         ctx.arc(midpoint.x, midpoint.y, 4, 0, Math.PI * 2);
         ctx.stroke();
+        // quarterpoint circle (between mid and edge point)
+        const quarterpoint = {
+            x: (midpoint.x + extendedEnd.x) / 2,
+            y: (midpoint.y + extendedEnd.y) / 2
+        }
+        ctx.strokeStyle = '#0000ff'
+        ctx.beginPath();
+        ctx.arc(quarterpoint.x, quarterpoint.y, 4, 0, Math.PI * 2);
+        ctx.stroke();
+
+        drawPerpendicularLines(ctx, quarterpoint, line, settings.canvasWidth, settings.canvasHeight)
+
     });
 }
 
@@ -338,6 +389,8 @@ const extendLineToCanvasEdge = (line, canvasWidth, canvasHeight) => {
 
     return closestIntersection;
 };
+
+
 
 
 ////////////////////////////////////////////////////
