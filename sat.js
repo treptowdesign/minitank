@@ -18,7 +18,8 @@ const Settings = {
 const Input = {
     state: {
         mousePos: {x: 0, y: 0},
-        mouseDown: false
+        mouseDown: false,
+        mouseWheel: 0
     },
     initialize(canvas){
         canvas.addEventListener('mousedown', (event) => {
@@ -29,8 +30,12 @@ const Input = {
         })
         canvas.addEventListener('mousemove', (event) => {
             const rect = canvas.getBoundingClientRect();
-            this.state.mousePos.x = event.clientX - rect.left;
-            this.state.mousePos.y = event.clientY - rect.top;
+            this.state.mousePos.x = event.clientX - rect.left
+            this.state.mousePos.y = event.clientY - rect.top
+            this.state.mouseWheel = 0
+        })
+        canvas.addEventListener('wheel', (event) => {
+            this.state.mouseWheel = event.deltaY
         })
     }
 }
@@ -76,18 +81,21 @@ class Entity {
         this.height = height
         this.width = width 
         this.angle = angle 
-        this.fillColor = 'black'
-        this.strokeColor = 'white'
+        this.fillColor = '#000'
+        this.strokeColor = '#000'
     }
     update(input) {
         const hover = this.containsPoint(input.mousePos)
         const click = input.mouseDown
-        this.fillColor = hover ? 'red' : 'black'
+        this.fillColor = hover ? '#666' : '#000'
+        this.strokeColor = hover ? 'blue' : '#000'
+        if(hover && Math.abs(input.mouseWheel) > 1){
+            this.angle += input.mouseWheel * 0.01
+        }
         if(click && hover){
             this.x = input.mousePos.x
             this.y = input.mousePos.y
         }
-        this.strokeColor = 'white' // reset stroke color
     }
     draw(ctx) {
         ctx.fillStyle = this.fillColor
@@ -103,7 +111,7 @@ class Entity {
         ctx.restore() 
     }
     handleCollision() {
-        this.strokeColor = 'green'
+        this.strokeColor = 'red'
     }
     getVertices() { // for collision detect
         const vertices = []; 
