@@ -267,38 +267,6 @@ const addEntity = (args) => {
 //     return point;
 // }
 
-const drawPerpendicularLines = (ctx, point, normalLine, canvasWidth, canvasHeight) => {
-    const { x, y } = point;
-    const length = 20
-
-    const perpendicularAngle = normalLine.normalAngle + Math.PI / 2;
-
-    // Calculate the endpoint of the perpendicular line on one side
-    const x1 = x + length * Math.cos(perpendicularAngle);
-    const y1 = y + length * Math.sin(perpendicularAngle);
-
-    // Calculate the endpoint of the perpendicular line on the other side
-    const x2 = x - length * Math.cos(perpendicularAngle);
-    const y2 = y - length * Math.sin(perpendicularAngle);
-
-    // Draw the perpendicular lines
-    ctx.strokeStyle = 'blue';
-    ctx.setLineDash([3, 3]); // dashed line
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x1, y1);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-    
-    ctx.setLineDash([]); // reset
-};
-
-
-
 const drawExtendedNormalLines = (ctx, entity, settings) => {
     const normalLines = entity.getNormalLines(20); // get normal lines with initial length
     normalLines.forEach(line => {
@@ -325,6 +293,8 @@ const drawExtendedNormalLines = (ctx, entity, settings) => {
         ctx.beginPath();
         ctx.arc(midpoint.x, midpoint.y, 4, 0, Math.PI * 2);
         ctx.stroke();
+
+
         // quarterpoint circle (between mid and edge point)
         const quarterpoint = {
             x: (midpoint.x + extendedEnd.x) / 2,
@@ -335,7 +305,36 @@ const drawExtendedNormalLines = (ctx, entity, settings) => {
         ctx.arc(quarterpoint.x, quarterpoint.y, 4, 0, Math.PI * 2);
         ctx.stroke();
 
-        drawPerpendicularLines(ctx, quarterpoint, line, settings.canvasWidth, settings.canvasHeight)
+        const perpLength = 20
+        const perpAngle = line.normalAngle + Math.PI / 2;
+        const perpLineA = {
+            x: quarterpoint.x + perpLength * Math.cos(perpAngle),
+            y: quarterpoint.y + perpLength * Math.sin(perpAngle)
+        }
+        const perpLineB = {
+            x: quarterpoint.x - perpLength * Math.cos(perpAngle),
+            y: quarterpoint.y - perpLength * Math.sin(perpAngle)
+        }
+
+        // need to pas in both quarterpoint and perpLine a/b
+        // const perpLineAExt = extendLineToCanvasEdge(perpLineA, settings.canvasWidth, settings.canvasHeight)
+        // const perpLineBExt = extendLineToCanvasEdge(perpLineB, settings.canvasWidth, settings.canvasHeight)
+
+        ctx.strokeStyle = '#0000ff';
+        ctx.setLineDash([3, 3]); // dashed line
+        ctx.beginPath();
+        ctx.moveTo(quarterpoint.x, quarterpoint.y);
+        ctx.lineTo(perpLineA.x, perpLineA.y);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(quarterpoint.x, quarterpoint.y);
+        ctx.lineTo(perpLineB.x, perpLineB.y);
+        ctx.stroke();
+
+        ctx.setLineDash([]); // reset
+
+
 
     });
 }
