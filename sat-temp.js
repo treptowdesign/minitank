@@ -23,19 +23,19 @@ const Input = {
     },
     initialize(canvas){
         canvas.addEventListener('mousedown', (event) => {
-            this.state.mouseDown = true
+            this.state.mouseDown = true;
         })
         canvas.addEventListener('mouseup', (event) => {
-            this.state.mouseDown = false
+            this.state.mouseDown = false;
         })
         canvas.addEventListener('mousemove', (event) => {
             const rect = canvas.getBoundingClientRect();
-            this.state.mousePos.x = event.clientX - rect.left
-            this.state.mousePos.y = event.clientY - rect.top
-            this.state.mouseWheel = 0
+            this.state.mousePos.x = event.clientX - rect.left;
+            this.state.mousePos.y = event.clientY - rect.top;
+            this.state.mouseWheel = 0;
         })
         canvas.addEventListener('wheel', (event) => {
-            this.state.mouseWheel = event.deltaY
+            this.state.mouseWheel = event.deltaY;
         })
     }
 }
@@ -75,12 +75,13 @@ const Utilities = {
 ////////////////////////////////////////////////////
 
 class Entity {
-    constructor({ x = 0, y = 0, width = 10, height = 10, angle = 0 } = {}) {
+    constructor({ x = 0, y = 0, width = 10, height = 10, angle = 0, sides = 3 } = {}) {
         this.x = x
         this.y = y
         this.height = height
         this.width = width 
         this.angle = angle 
+        this.sides = sides
         this.fillColor = '#000'
         this.strokeColor = '#000'
     }
@@ -120,18 +121,38 @@ class Entity {
     handleCollision() {
         this.strokeColor = 'red'
     }
-    getVertices() {
-        const vertices = [];
-        const angle = this.angle;
-        const radius = Math.sqrt(3) * this.height / 3; // Radius of the circumcircle
-        for (let i = 0; i < 3; i++) {
-            const theta = angle + (i * 2 * Math.PI) / 3;
-            const x = this.x + radius * Math.cos(theta);
-            const y = this.y + radius * Math.sin(theta);
-            vertices.push({ x: x, y: y });
+
+    getVertices() { // for collision detect
+        if(this.sides > 0 && this.sides != 4){ // tri 
+            const vertices = [];
+            const angle = this.angle;
+            const radius = Math.sqrt(this.sides) * this.height / this.sides; // radius of the circumcircle
+            for (let i = 0; i < this.sides; i++) {
+                const theta = angle + (i * 2 * Math.PI) / this.sides;
+                const x = this.x + radius * Math.cos(theta);
+                const y = this.y + radius * Math.sin(theta);
+                vertices.push({ x: x, y: y });
+            }
+            return vertices;
+        } else { // quad
+            const vertices = []; 
+            const angle = this.angle;
+            const corners = [
+                { x: -this.width / 2, y: -this.height / 2 },
+                { x: this.width / 2, y: -this.height / 2 },
+                { x: this.width / 2, y: this.height / 2 },
+                { x: -this.width / 2, y: this.height / 2 }
+            ]
+            corners.forEach(corner => {
+                const rotatedX = this.x + (corner.x * Math.cos(angle) - corner.y * Math.sin(angle))
+                const rotatedY = this.y + (corner.x * Math.sin(angle) + corner.y * Math.cos(angle))
+                vertices.push({ x: rotatedX, y: rotatedY })
+            })
+            return vertices
         }
-        return vertices;
+        
     }
+
     containsPoint(point) {
         const vertices = this.getVertices()
         let contains = false
@@ -173,8 +194,8 @@ class Entity {
         const edges = this.getEdges();
         const normalLines = []
         edges.forEach(edge => {
-            const normalAngle = edge.angle - Math.PI / 2; // rotate pi/2 radians (90deg)
-            // const normalAngle = edge.angle + Math.PI / 2; // rotate pi/2 radians (90deg) other way
+            const normalAngle = edge.angle + Math.PI / 2; // rotate pi/2 radians (90deg)
+            // const normalAngle = edge.angle - Math.PI / 2; // rotate pi/2 radians (90deg) 
             // endpoint 20px length
             const normalX = Math.cos(normalAngle) * length;
             const normalY = Math.sin(normalAngle) * length;
@@ -184,27 +205,6 @@ class Entity {
             normalLines.push({startX: startX, startY: startY, normalX: normalX, normalY: normalY, normalAngle: normalAngle})
         });
         return normalLines
-    }
-
-    getDrawTestPoint(ctx){
-        const vertices = this.getVertices()
-        // let testPoints = [];
-        for (let i = 0; i < vertices.length; i++) {
-            const next = i + 1 === vertices.length ? 0 : i + 1;
-            const edge = { x: vertices[next].x - vertices[i].x, y: vertices[next].y - vertices[i].y };
-            const normal = { x: -edge.y, y: edge.x };
-            // testPoints.push(normal);
-            ctx.strokeStyle = 'green'
-            ctx.beginPath()
-            ctx.arc(this.x + edge.x, this.y + edge.y, 4, 0, Math.PI * 2)
-            ctx.stroke()
-            ctx.strokeStyle = 'orange'
-            ctx.beginPath()
-            ctx.arc(this.x + normal.x, this.y + normal.y, 4, 0, Math.PI * 2)
-            ctx.stroke()
-
-        }
-        // return testPoints;
     }
 
     drawVertices(ctx) {
@@ -236,7 +236,7 @@ class Entity {
         ctx.fill()
     }
     drawNormals(ctx) {
-        const normals = this.getNormalLines(20)
+        const normals = this.getNormalLines(10)
         ctx.strokeStyle = '#ff00ff'; 
         normals.forEach(normal => {
             ctx.beginPath();
@@ -302,30 +302,29 @@ const drawAxisLines = (ctx, entity, settings) => {
         ctx.stroke();
 
         // quarterpoint circle (between mid and edge point)
-        // const quarterpoint = {
-        //     x: (midpoint.x + extendedEnd.x) / 2,
-        //     y: (midpoint.y + extendedEnd.y) / 2
-        // }
-        // ctx.strokeStyle = '#0000ff'
-        // ctx.beginPath();
-        // ctx.arc(quarterpoint.x, quarterpoint.y, 4, 0, Math.PI * 2);
-        // ctx.stroke();
+        const quarterpoint = {
+            x: (midpoint.x + extendedEnd.x) / 2,
+            y: (midpoint.y + extendedEnd.y) / 2
+        }
+        ctx.strokeStyle = '#0000ff'
+        ctx.beginPath();
+        ctx.arc(quarterpoint.x, quarterpoint.y, 4, 0, Math.PI * 2);
+        ctx.stroke();
 
         const perpLength = 20
         const perpAngle = line.normalAngle + Math.PI / 2;
         const perpLineA = {
-            startX: midpoint.x,
-            startY: midpoint.y,
+            startX: quarterpoint.x,
+            startY: quarterpoint.y,
             normalX: perpLength * Math.cos(perpAngle),
             normalY: perpLength * Math.sin(perpAngle)
         }
         const perpLineB = {
-            startX: midpoint.x,
-            startY: midpoint.y,
+            startX: quarterpoint.x,
+            startY: quarterpoint.y,
             normalX: -perpLength * Math.cos(perpAngle),
             normalY: -perpLength * Math.sin(perpAngle)
         }
-
         const perpLineAExt = extendLineToCanvasEdge(perpLineA, settings.canvasWidth, settings.canvasHeight)
         const perpLineBExt = extendLineToCanvasEdge(perpLineB, settings.canvasWidth, settings.canvasHeight)
 
@@ -349,8 +348,6 @@ const drawAxisLines = (ctx, entity, settings) => {
         ctx.fill();
 
         ctx.setLineDash([]); // reset
-
-
 
     });
 }
@@ -407,26 +404,6 @@ const extendLineToCanvasEdge = (line, canvasWidth, canvasHeight) => {
 
     return closestIntersection;
 };
-
-
-
-
-const generateRandomHexColor = () => {
-    // Generate random values for red, green, and blue components
-    const red = Math.floor(Math.random() * 256); // Random value between 0 and 255
-    const green = Math.floor(Math.random() * 256);
-    const blue = Math.floor(Math.random() * 256);
-  
-    // Convert each component to hexadecimal and pad with zeros if necessary
-    const redHex = red.toString(16).padStart(2, '0');
-    const greenHex = green.toString(16).padStart(2, '0');
-    const blueHex = blue.toString(16).padStart(2, '0');
-  
-    // Concatenate the components into a hex color string
-    const hexColor = `#${redHex}${greenHex}${blueHex}`;
-  
-    return hexColor;
-  }
 
 
 
@@ -490,25 +467,11 @@ const checkCollision = (entity1, entity2) => {
 Input.initialize(Settings.canvas)
 Utilities.fps.refreshLoop()
 
-// addEntity({x: 260, y: 200, height: 120, width: 80, angle: 0})
-// addEntity({x: 520, y: 230, height: 140, width: 70, angle: 2.35})
-
-addEntity({x: 260, y: 200, height: 90, angle: 0})
-addEntity({x: 520, y: 230, height: 110, angle: 2.35})
-
-
-// const colorArray = [
-//     'cyan', 'red', 'orange', 'pink', 'gray', 'purple'
-// ]
-
-const colorArray = [
-    generateRandomHexColor(), 
-    generateRandomHexColor(), 
-    generateRandomHexColor(), 
-    generateRandomHexColor(), 
-    generateRandomHexColor(), 
-    generateRandomHexColor()
-]
+// addEntity({x: 260, y: 200, height: 120, width: 80, angle: 0, sides: 3}) 
+// addEntity({x: 520, y: 230, height: 140, width: 70, angle: 2.35, sides: 3})
+// addEntity({x: 310, y: 250, height: 100, width: 70, angle: 1.35, sides: 5})
+addEntity({x: 460, y: 440, height: 80, width: 90, angle: 0.15, sides: 3}) 
+addEntity({x: 410, y: 300, height: 80, width: 70, angle: 2.35, sides: 3})
 
 function gameLoop() {
 
@@ -516,44 +479,10 @@ function gameLoop() {
 
     // entities.forEach(entity => {  entity.update(Input.state) }) 
 
-    entities.forEach(entity => {entity.update(Input.state)})
-
-    // entities.forEach(entity => {
-    //     entity.update(Input.state)
-    //     drawAxisLines(Settings.ctx, entity, Settings)
-    // })
-
-    // display the entity normals 
-    let displayVertices = []
-    let displayAxes = []
     entities.forEach(entity => {
-        displayVertices.push(entity)
-        displayAxes.push(...getAxes(entity.getVertices()))
-    })
-    displayAxes.flat() // flatten array to one level 
-    displayAxes.forEach((axis, index) => {
-        // console.log(index)
-        const vertColor = colorArray[index]
-
-        axis.x = Settings.canvasWidth/2 + axis.x // all relative so need to center on screen to see
-        axis.y = Settings.canvasHeight/2 + axis.y // all relative so need to center on screen to see
-        Settings.ctx.fillStyle = vertColor;
-        Settings.ctx.beginPath();
-        Settings.ctx.arc(axis.x, axis.y, 6, 0, Math.PI * 2);
-        Settings.ctx.fill();
-        displayVertices.forEach(body => { // loop thru entities 
-            body.getVertices().forEach(v => { // loop thru vertices
-                // const color = generateRandomHexColor()
-                const pt = { x: v.x, y: v.y }
-                Settings.ctx.strokeStyle = vertColor;
-                Settings.ctx.beginPath();
-                Settings.ctx.arc(Math.sqrt(pt.x * axis.x), Math.sqrt(pt.y * axis.y), 4, 0, Math.PI * 2);
-                Settings.ctx.stroke();
-            })
-        })
-    })
-
-
+        entity.update(Input.state);
+        drawAxisLines(Settings.ctx, entity, Settings);
+    });
 
     for (let i = 0; i < entities.length; i++) {
         for (let j = i + 1; j < entities.length; j++) {
@@ -566,7 +495,7 @@ function gameLoop() {
 
     entities.forEach(entity => { entity.draw(Settings.ctx) })
 
-    Utilities.fps.draw(Settings.ctx, ('x: '+Input.state.mousePos.x +', y:'+Input.state.mousePos.y))
+    Utilities.fps.draw(Settings.ctx, ('w: '+Input.state.mouseWheel))
 
     requestAnimationFrame(gameLoop)
 }
